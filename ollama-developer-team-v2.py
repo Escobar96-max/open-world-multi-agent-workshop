@@ -402,20 +402,17 @@ industry-standard slate design layouts."""
         print("\n[Coder 💻] Coder starting backend script development...")
         SpatialCanvasManager.relocate_agent_on_canvas("Coder", "Obsidian Citadel")
         
-        coder_prompt = "Build a Python utility module that calculates multi-dimensional Euclidean offsets."
-        coder_sys = "You are a Backend Python Engineer. Output only fully executable python code blocks."
+        coder_prompt = "Build a self-contained Python utility module that calculates multi-dimensional Euclidean offsets. Include a runnable test execution block under if __name__ == '__main__': that prints the calculated distance."
+        coder_sys = "You are a Backend Python Engineer. Output only fully executable python code blocks with a runnable test execution in if __name__ == '__main__':."
         
-        # Helper to strip markdown code blocks
+        # Robust helper to extract clean code from LLM responses
         def sanitize_code(raw: str) -> str:
-            cleaned = raw.strip()
-            if cleaned.startswith("```"):
-                lines = cleaned.splitlines()
-                if lines and lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines and lines[-1].startswith("```"):
-                    lines = lines[:-1]
-                cleaned = "\n".join(lines).strip()
-            return cleaned
+            import re
+            matches = re.findall(r"```(?:python|jsx|javascript|js)?\s*\n(.*?)```", raw, re.DOTALL)
+            if matches:
+                return matches[0].strip()
+            lines = [line for line in raw.splitlines() if not line.strip().startswith("```")]
+            return "\n".join(lines).strip()
 
         backend_code = sanitize_code(self.ollama.generate("codellama", coder_prompt, system=coder_sys))
         backend_path = os.path.join(self.workspace_dir, "distance_utility.py")

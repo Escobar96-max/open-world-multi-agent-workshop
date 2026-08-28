@@ -4,3 +4,4 @@ websockets>=13.0
 pydantic>=2.8.0
 starlette>=0.38.0
 requests>=2.31.0
+numpy>=1.26.0
