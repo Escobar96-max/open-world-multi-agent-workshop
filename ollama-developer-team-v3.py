@@ -19,7 +19,8 @@ if sys.platform == "win32":
 BASE_DIR = Path(__file__).resolve().parent
 TOKEN_FILE_PATH = Path.home() / ".ollama_proxy_token"
 OLLAMA_PROXY_URL = os.environ.get("OLLAMA_PROXY_URL", "http://127.0.0.1:11435")
-VAULT_PATH = BASE_DIR / "ObsidianAgentVault"
+VAULT_PATHS = [BASE_DIR / "ObsidianAgentVault", Path(r"C:\Users\Asus\Documents\Obsidian Vault")]
+VAULT_PATH = VAULT_PATHS[0]
 EPISODIC_DIR = VAULT_PATH / "01_Episodic_Logs"
 SEMANTIC_DIR = VAULT_PATH / "02_Semantic_Graph"
 CANVAS_FILE = VAULT_PATH / "World_Map.canvas"

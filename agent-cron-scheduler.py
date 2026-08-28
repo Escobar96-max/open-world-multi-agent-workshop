@@ -16,7 +16,8 @@ if sys.platform == "win32":
 # =====================================================================
 BASE_DIR = Path(__file__).resolve().parent
 TOKEN_FILE_PATH = Path.home() / ".ollama_proxy_token"
-VAULT_PATH = BASE_DIR / "ObsidianAgentVault"
+VAULT_PATHS = [BASE_DIR / "ObsidianAgentVault", Path(r"C:\Users\Asus\Documents\Obsidian Vault")]
+VAULT_PATH = VAULT_PATHS[0]
 EPISODIC_DIR = VAULT_PATH / "01_Episodic_Logs"
 
 # Candidates for backend endpoints
@@ -39,11 +40,7 @@ def load_proxy_token() -> str:
 def log_to_obsidian(success: bool, data: dict, error_msg: str = ""):
     """Writes an episodic diary entry to Obsidian recording the consolidation outcome."""
     date_str = datetime.datetime.now().strftime("%Y-%m-%d")
-    target_dir = EPISODIC_DIR / date_str
-    target_dir.mkdir(parents=True, exist_ok=True)
-    
     time_str = datetime.datetime.now().strftime("%H%M%S")
-    log_file = target_dir / f"EP_CRON_CONSOLIDATE_{time_str}.md"
     
     if success:
         stats = data.get("stats", {})
@@ -112,8 +109,12 @@ Ensure the FastAPI backend gateway (port 8080/8089) and secure Ollama proxy (por
 - [[Project_Manager]]
 - [[Obsidian_Citadel]]
 """
-    with open(log_file, "w", encoding="utf-8") as f:
-        f.write(content)
+    for v in VAULT_PATHS:
+        target_dir = v / "01_Episodic_Logs" / date_str
+        target_dir.mkdir(parents=True, exist_ok=True)
+        log_file = target_dir / f"EP_CRON_CONSOLIDATE_{time_str}.md"
+        with open(log_file, "w", encoding="utf-8") as f:
+            f.write(content)
     print(f"[✔] Logged maintenance report inside Obsidian: {log_file.name}")
 
 def trigger_consolidation():
