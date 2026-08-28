@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 import json
 import socket
@@ -180,18 +180,26 @@ class SecureOllamaProxyHandler(BaseHTTPRequestHandler):
                     self.wfile.write(chunk)
                     self.wfile.flush()
 
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            pass
         except HTTPError as e:
-            self.send_response(e.code)
-            for key, value in e.headers.items():
-                self.send_header(key, value)
-            self.end_headers()
-            self.wfile.write(e.read())
+            try:
+                self.send_response(e.code)
+                for key, value in e.headers.items():
+                    self.send_header(key, value)
+                self.end_headers()
+                self.wfile.write(e.read())
+            except Exception:
+                pass
         except URLError as e:
             print(f"[❌ Connection Error] Failed to contact upstream Ollama on {DEFAULT_UPSTREAM_URL}: {e}")
             self._send_error_response(502, f"Bad Gateway: Upstream Ollama is offline or refusing connections on {DEFAULT_UPSTREAM_URL}.")
         except Exception as e:
             print(f"[❌ Server Error] Proxy exception encountered: {e}")
-            self._send_error_response(500, f"Internal Server Error: {str(e)}")
+            try:
+                self._send_error_response(500, f"Internal Server Error: {str(e)}")
+            except Exception:
+                pass
 
     def do_GET(self):
         self.handle_request()

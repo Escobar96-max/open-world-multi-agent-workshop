@@ -405,7 +405,19 @@ industry-standard slate design layouts."""
         coder_prompt = "Build a Python utility module that calculates multi-dimensional Euclidean offsets."
         coder_sys = "You are a Backend Python Engineer. Output only fully executable python code blocks."
         
-        backend_code = self.ollama.generate("codellama", coder_prompt, system=coder_sys)
+        # Helper to strip markdown code blocks
+        def sanitize_code(raw: str) -> str:
+            cleaned = raw.strip()
+            if cleaned.startswith("```"):
+                lines = cleaned.splitlines()
+                if lines and lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                cleaned = "\n".join(lines).strip()
+            return cleaned
+
+        backend_code = sanitize_code(self.ollama.generate("codellama", coder_prompt, system=coder_sys))
         backend_path = os.path.join(self.workspace_dir, "distance_utility.py")
         with open(backend_path, "w", encoding="utf-8") as f:
             f.write(backend_code)
@@ -425,7 +437,7 @@ industry-standard slate design layouts."""
         fe_prompt = "Design a beautiful, responsive React dashboard card template to display agent metrics. Include status badges."
         fe_sys = "You are a professional UX/UI Frontend Developer. Output only clean, modular React component code."
         
-        frontend_code = self.ollama.generate("codellama", fe_prompt, system=fe_sys)
+        frontend_code = sanitize_code(self.ollama.generate("codellama", fe_prompt, system=fe_sys))
         frontend_path = os.path.join(self.workspace_dir, "AgentDashboardCard.jsx")
         with open(frontend_path, "w", encoding="utf-8") as f:
             f.write(frontend_code)
@@ -470,7 +482,7 @@ industry-standard slate design layouts."""
             
             print("\n[Frontend Coder 🎨] Frontend Developer applying styles correction...")
             correction_prompt = f"Correct the styling of the badge in the React component based on this review feedback: '{reviewer_res['feedback']}'. Code:\n\n{frontend_code}"
-            corrected_fe_code = self.ollama.generate("codellama", correction_prompt, system=fe_sys)
+            corrected_fe_code = sanitize_code(self.ollama.generate("codellama", correction_prompt, system=fe_sys))
             
             with open(frontend_path, "w", encoding="utf-8") as f:
                 f.write(corrected_fe_code)
