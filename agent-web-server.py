@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import os
 import json
 import asyncio
@@ -194,6 +194,43 @@ def toggle_background_loop(payload: Optional[Dict[str, Any]] = Body(None)):
         loop_state["is_running"] = not loop_state["is_running"]
     logger.info(f"🔁 Background simulation loop set to: {loop_state['is_running']}")
     return {"loop_running": loop_state["is_running"], "interval": loop_state["interval_seconds"]}
+
+# =====================================================================
+# MEMORY CONSOLIDATION ENDPOINTS
+# =====================================================================
+@app.get("/api/memory/stats")
+def memory_stats():
+    """Returns cognitive buffer sizes, node counts, and token optimization metrics."""
+    try:
+        from agent_memory_consolidator import get_memory_stats
+        return get_memory_stats()
+    except Exception as e:
+        logger.error(f"Error fetching memory stats: {e}")
+        return {"error": str(e), "hot_count": 0, "cold_count": 0, "tombstone_count": 0}
+
+@app.post("/api/memory/consolidate")
+def memory_consolidate():
+    """Manual override trigger to immediately execute dual-buffer consolidation."""
+    try:
+        from agent_memory_consolidator import MemoryConsolidator
+        consolidator = MemoryConsolidator()
+        result = consolidator.run_consolidation_cycle()
+        return result
+    except Exception as e:
+        logger.error(f"Error running consolidation cycle: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.post("/api/memory/recover")
+def memory_recover(payload: Dict[str, Any] = Body(...)):
+    """Restores target file from Tombstone archive back to active episodic buffer."""
+    try:
+        from agent_memory_consolidator import recover_tombstoned_file
+        filename = payload.get("filename", "")
+        success = recover_tombstoned_file(filename)
+        return {"recovered": success, "filename": filename}
+    except Exception as e:
+        logger.error(f"Error recovering tombstoned memory: {e}")
+        return {"recovered": False, "error": str(e)}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

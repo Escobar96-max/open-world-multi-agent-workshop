@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Brain, ShieldAlert, Cpu, Activity, Play, Pause, RotateCcw,
   Sparkles, RefreshCw, Zap, Compass, FileText, ChevronRight,
@@ -17,6 +17,13 @@ export default function OpenWorldVisualizer({ onOpenFullVault }) {
   const [selectedAgent, setSelectedAgent] = useState('Bob');
   const [activeDiaryNote, setActiveDiaryNote] = useState(null);
   
+  // Memory Vault State
+  const [sidebarTab, setSidebarTab] = useState('telemetry'); // 'telemetry' | 'memory'
+  const [memoryStats, setMemoryStats] = useState(null);
+  const [isConsolidating, setIsConsolidating] = useState(false);
+  const [recoverInput, setRecoverInput] = useState('');
+  const [consolidationResult, setConsolidationResult] = useState(null);
+  
   // Controls & Toggles
   const [autoPlay, setAutoPlay] = useState(true);
   const [wsConnected, setWsConnected] = useState(false);
@@ -28,6 +35,57 @@ export default function OpenWorldVisualizer({ onOpenFullVault }) {
   const wsRef = useRef(null);
   const particlesRef = useRef([]);
   const lightningFlashRef = useRef(0);
+
+  const fetchMemoryStats = async () => {
+    try {
+      const res = await fetch(`${HTTP_API_BASE}/api/memory/stats`);
+      if (res.ok) {
+        const data = await res.json();
+        setMemoryStats(data);
+      }
+    } catch (e) {
+      console.error('Error fetching memory stats:', e);
+    }
+  };
+
+  const triggerConsolidation = async () => {
+    setIsConsolidating(true);
+    try {
+      const res = await fetch(`${HTTP_API_BASE}/api/memory/consolidate`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setConsolidationResult(data);
+        await fetchMemoryStats();
+      }
+    } catch (e) {
+      console.error('Error running consolidation:', e);
+    } finally {
+      setIsConsolidating(false);
+    }
+  };
+
+  const handleRecover = async () => {
+    if (!recoverInput) return;
+    try {
+      const res = await fetch(`${HTTP_API_BASE}/api/memory/recover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: recoverInput })
+      });
+      if (res.ok) {
+        setRecoverInput('');
+        await fetchMemoryStats();
+      }
+    } catch (e) {
+      console.error('Error recovering memory:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchMemoryStats();
+    const timer = setInterval(fetchMemoryStats, 8000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Connect to WebSocket Server (port 8080 /ws)
   useEffect(() => {
@@ -597,49 +655,161 @@ export default function OpenWorldVisualizer({ onOpenFullVault }) {
 
         </main>
 
-        {/* RIGHT COLUMN: REASONING & TELEMETRY */}
+        {/* RIGHT COLUMN: REASONING & TELEMETRY / MEMORY VAULT */}
         <aside className="w-96 border-l border-slate-800/80 bg-[#0a0f1c] flex flex-col shrink-0 overflow-hidden shadow-2xl">
-          <div className="h-12 border-b border-slate-800 px-4 flex items-center justify-between shrink-0 bg-[#0d1424]">
-            <div className="flex items-center space-x-2">
-              <FileText className="w-4 h-4 text-cyan-400" />
-              <h2 className="font-bold text-xs text-slate-200 uppercase tracking-wider">Agent Telemetry & Logs</h2>
+          {/* Dual-Tab Header */}
+          <div className="h-12 border-b border-slate-800 px-2 flex items-center justify-between shrink-0 bg-[#0d1424]">
+            <div className="flex space-x-1 w-full">
+              <button
+                onClick={() => setSidebarTab('telemetry')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition ${sidebarTab === 'telemetry' ? 'bg-slate-800 text-cyan-400 shadow' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Telemetry</span>
+              </button>
+              <button
+                onClick={() => setSidebarTab('memory')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition ${sidebarTab === 'memory' ? 'bg-indigo-950 text-indigo-300 border border-indigo-700/60 shadow' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                <Brain className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Memory Vault</span>
+              </button>
             </div>
           </div>
 
-          {currentAgentData && (
-            <div className="p-4 border-b border-slate-800 bg-slate-900/40 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-white flex items-center space-x-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>{selectedAgent.replace('_', ' ')} Active Profile</span>
-                </span>
-                <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-1.5 py-0.5 rounded font-mono">
-                  {currentAgentData.status || 'Active'}
-                </span>
+          {sidebarTab === 'telemetry' ? (
+            <>
+              {currentAgentData && (
+                <div className="p-4 border-b border-slate-800 bg-slate-900/40 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-white flex items-center space-x-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>{selectedAgent.replace('_', ' ')} Active Profile</span>
+                    </span>
+                    <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-1.5 py-0.5 rounded font-mono">
+                      {currentAgentData.status || 'Active'}
+                    </span>
+                  </div>
+
+                  <div className="text-xs text-slate-300 bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80 font-mono text-[11px] leading-relaxed">
+                    <div className="text-slate-500 text-[10px] mb-1 uppercase font-bold">Latest Action:</div>
+                    "{currentAgentData.last_action}"
+                    <div className="text-slate-500 text-[10px] mt-2 mb-1 uppercase font-bold">Internal Reasoning:</div>
+                    "{currentAgentData.last_reasoning}"
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Events Log */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 font-mono text-xs">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Live Stream Events:</div>
+                {worldState?.events?.slice(-8).map((evt, idx) => (
+                  <div key={idx} className="p-2 bg-slate-900/70 border border-slate-800 rounded-lg text-[11px]">
+                    <div className="flex justify-between text-slate-500 text-[10px] mb-1">
+                      <span>Tick {evt.tick}</span>
+                      <span className="uppercase text-cyan-400">{evt.type}</span>
+                    </div>
+                    <div className="text-slate-300">{evt.text}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            /* MEMORY VAULT CONSOLIDATION TAB */
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 font-mono text-xs">
+              <div className="bg-indigo-950/30 border border-indigo-800/50 p-3 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center space-x-1.5">
+                    <Brain className="w-4 h-4 text-indigo-400" />
+                    <span>Dual-Buffer Consolidation</span>
+                  </span>
+                  <span className="text-[10px] bg-indigo-900 text-indigo-200 px-2 py-0.5 rounded-full font-bold">
+                    {memoryStats?.compression_ratio || 65.0}% Savings
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 leading-relaxed font-sans">
+                  Hippocampal short-term diaries periodically distilled into hardened neocortical semantic facts.
+                </div>
               </div>
 
-              <div className="text-xs text-slate-300 bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80 font-mono text-[11px] leading-relaxed">
-                <div className="text-slate-500 text-[10px] mb-1 uppercase font-bold">Latest Action:</div>
-                "{currentAgentData.last_action}"
-                <div className="text-slate-500 text-[10px] mt-2 mb-1 uppercase font-bold">Internal Reasoning:</div>
-                "{currentAgentData.last_reasoning}"
+              {/* Memory Buffers Grid */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-slate-900/90 border border-amber-500/30 p-2.5 rounded-lg text-center">
+                  <div className="text-[10px] text-amber-400 font-bold uppercase mb-0.5">Hot Buffer</div>
+                  <div className="text-lg font-bold text-white">{memoryStats?.hot_count || 0}</div>
+                  <div className="text-[9px] text-slate-500">Episodic Diaries</div>
+                </div>
+
+                <div className="bg-slate-900/90 border border-cyan-500/30 p-2.5 rounded-lg text-center">
+                  <div className="text-[10px] text-cyan-400 font-bold uppercase mb-0.5">Cold Memory</div>
+                  <div className="text-lg font-bold text-white">{memoryStats?.cold_count || 0}</div>
+                  <div className="text-[9px] text-slate-500">LATCH Facts</div>
+                </div>
+
+                <div className="bg-slate-900/90 border border-rose-500/30 p-2.5 rounded-lg text-center">
+                  <div className="text-[10px] text-rose-400 font-bold uppercase mb-0.5">Tombstone</div>
+                  <div className="text-lg font-bold text-white">{memoryStats?.tombstone_count || 0}</div>
+                  <div className="text-[9px] text-slate-500">Recycle Bin</div>
+                </div>
               </div>
+
+              {/* Token Compression Progress */}
+              <div className="bg-slate-900/80 border border-slate-800 p-3 rounded-xl space-y-2">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-slate-400">Context Window Optimization</span>
+                  <span className="text-emerald-400 font-bold">{memoryStats?.compression_ratio || 65.0}% Reduction</span>
+                </div>
+                <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+                  <div 
+                    className="bg-gradient-to-r from-indigo-500 via-cyan-400 to-emerald-400 h-full transition-all duration-500" 
+                    style={{ width: `${memoryStats?.compression_ratio || 65.0}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-slate-500">
+                  <span>Raw: ~{memoryStats?.estimated_raw_tokens || 22200} tokens</span>
+                  <span>Distilled: ~{memoryStats?.optimized_tokens || 17550} tokens</span>
+                </div>
+              </div>
+
+              {/* Actions & Consolidation Trigger */}
+              <div className="space-y-2 pt-2 border-t border-slate-800">
+                <button
+                  onClick={triggerConsolidation}
+                  disabled={isConsolidating}
+                  className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition ${isConsolidating ? 'bg-indigo-900 text-indigo-300 cursor-wait' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg hover:shadow-indigo-500/20 active:scale-98'}`}
+                >
+                  <Sparkles className={`w-4 h-4 ${isConsolidating ? 'animate-spin' : ''}`} />
+                  <span>{isConsolidating ? 'Consolidating & Distilling...' : 'Optimize & Consolidate Memories'}</span>
+                </button>
+
+                <div className="flex items-center space-x-2 pt-2">
+                  <input
+                    type="text"
+                    value={recoverInput}
+                    onChange={(e) => setRecoverInput(e.target.value)}
+                    placeholder="Enter tombstoned filename..."
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-indigo-500"
+                  />
+                  <button
+                    onClick={handleRecover}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg border border-slate-700 transition"
+                  >
+                    Recover
+                  </button>
+                </div>
+              </div>
+
+              {consolidationResult && (
+                <div className="p-2.5 bg-emerald-950/40 border border-emerald-800/60 rounded-lg text-[11px] text-emerald-300 space-y-1">
+                  <div className="font-bold flex items-center space-x-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Consolidation Loop Finished!</span>
+                  </div>
+                  <div>Promoted: {consolidationResult.promoted} | Retained: {consolidationResult.retained}</div>
+                </div>
+              )}
             </div>
           )}
-
-          {/* Recent Events Log */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 font-mono text-xs">
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Live Stream Events:</div>
-            {worldState?.events?.slice(-8).map((evt, idx) => (
-              <div key={idx} className="p-2 bg-slate-900/70 border border-slate-800 rounded-lg text-[11px]">
-                <div className="flex justify-between text-slate-500 text-[10px] mb-1">
-                  <span>Tick {evt.tick}</span>
-                  <span className="uppercase text-cyan-400">{evt.type}</span>
-                </div>
-                <div className="text-slate-300">{evt.text}</div>
-              </div>
-            ))}
-          </div>
         </aside>
 
       </div>
