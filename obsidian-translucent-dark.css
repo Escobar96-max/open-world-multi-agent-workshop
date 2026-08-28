@@ -1,0 +1,84 @@
+﻿/* ==========================================================================
+   Obsidian Translucent Dark Theme Snippet (Glassmorphism & Cyber-Slate)
+   ========================================================================== */
+
+:root {
+  --bg-translucent-base: rgba(11, 15, 25, 0.78);
+  --bg-translucent-card: rgba(15, 23, 42, 0.65);
+  --bg-translucent-hover: rgba(30, 41, 59, 0.75);
+  --border-translucent: rgba(56, 189, 248, 0.18);
+  --border-translucent-subtle: rgba(148, 163, 184, 0.12);
+  --accent-cyan: #38bdf8;
+  --accent-emerald: #34d399;
+  --accent-purple: #a855f7;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --glass-blur: blur(16px);
+}
+
+/* Base Window Translucency */
+.theme-dark {
+  --background-primary: var(--bg-translucent-base);
+  --background-secondary: rgba(15, 23, 42, 0.85);
+  --background-secondary-alt: rgba(10, 14, 23, 0.9);
+  --background-modifier-border: var(--border-translucent-subtle);
+}
+
+/* Glassmorphism Workspace Leaf & Panels */
+.workspace-leaf-content {
+  background: var(--bg-translucent-base) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-translucent-subtle);
+}
+
+/* Translucent Left & Right Sidebars */
+.workspace-ribbon,
+.workspace-split.mod-left-split,
+.workspace-split.mod-right-split {
+  background: rgba(10, 15, 26, 0.88) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border-translucent-subtle);
+}
+
+/* Translucent Editor View */
+.markdown-source-view.mod-cm6 .cm-editor,
+.markdown-preview-view {
+  background: transparent !important;
+  color: var(--text-main);
+}
+
+/* Glassmorphic Frontmatter Block */
+.metadata-container {
+  background: var(--bg-translucent-card) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-translucent);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* Code Blocks & Pre Elements */
+.markdown-rendered pre,
+.cm-s-obsidian pre {
+  background: rgba(15, 23, 42, 0.75) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 10px;
+}
+
+/* Obsidian Canvas Visual Node Glass Cards */
+.canvas-node-container {
+  background: var(--bg-translucent-card) !important;
+  backdrop-filter: blur(14px) !important;
+  border: 1px solid var(--border-translucent) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
+}
+
+.canvas-node.is-focused .canvas-node-container {
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.35) !important;
+}
