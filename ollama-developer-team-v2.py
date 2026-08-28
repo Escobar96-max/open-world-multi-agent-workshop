@@ -16,7 +16,7 @@ if sys.platform == "win32":
 # =====================================================================
 # SYSTEM CONFIGURATION & DIRECTORIES
 # =====================================================================
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11435")
 VAULT_PATH = os.environ.get("VAULT_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), "ObsidianAgentVault")))
 EPISODIC_DIR = os.path.join(VAULT_PATH, "01_Episodic_Logs")
 SEMANTIC_DIR = os.path.join(VAULT_PATH, "02_Semantic_Graph")
@@ -28,27 +28,41 @@ for path in [EPISODIC_DIR, os.path.join(SEMANTIC_DIR, "Agents"), os.path.join(SE
 
 
 # =====================================================================
-# 1. OLLAMA CLIENT WITH OFFLINE SIMULATION FALLBACK
+# 1. SECURE OLLAMA CLIENT WITH PROXY TOKEN AUTHENTICATION
 # =====================================================================
 class OllamaClient:
     """
-    Connects to a local Ollama server. Falls back to a deterministic, high-quality
-    simulation mode if Ollama is offline, making the script fully runnable and testable.
+    Connects to our secure Ollama reverse proxy on port 11435 with token-gated
+    bypass headers. Falls back to deterministic simulation mode if offline.
     """
     def __init__(self, base_url: str = OLLAMA_HOST):
         self.base_url = base_url.rstrip("/")
+        self.token = self._load_proxy_token()
         self.is_online = self._ping_ollama()
+
+    def _load_proxy_token(self) -> str:
+        token_file = os.path.expanduser("~/.ollama_proxy_token")
+        if os.path.exists(token_file):
+            try:
+                with open(token_file, "r", encoding="utf-8") as f:
+                    return f.read().strip()
+            except Exception:
+                pass
+        return os.environ.get("OLLAMA_PROXY_TOKEN", "5372a7f3032729494adca121752d4432bbadec1fc692d63f2e2e8401206bf41a")
 
     def _ping_ollama(self) -> bool:
         try:
-            req = urllib.request.Request(f"{self.base_url}/api/tags")
-            with urllib.request.urlopen(req, timeout=1.5) as response:
+            req = urllib.request.Request(
+                f"{self.base_url}/api/tags",
+                headers={"X-Ollama-Bypass-Token": self.token}
+            )
+            with urllib.request.urlopen(req, timeout=2.0) as response:
                 return response.status == 200
         except Exception:
             return False
 
     def generate(self, model: str, prompt: str, system: str = "", temperature: float = 0.2) -> str:
-        """Calls the Ollama local inference endpoint with fallback capabilities."""
+        """Calls the secure Ollama proxy endpoint with X-Ollama-Bypass-Token."""
         if self.is_online:
             try:
                 url = f"{self.base_url}/api/generate"
@@ -63,7 +77,10 @@ class OllamaClient:
                 req = urllib.request.Request(
                     url, 
                     data=data, 
-                    headers={"Content-Type": "application/json"}
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-Ollama-Bypass-Token": self.token
+                    }
                 )
                 with urllib.request.urlopen(req, timeout=15.0) as response:
                     res_body = json.loads(response.read().decode("utf-8"))
