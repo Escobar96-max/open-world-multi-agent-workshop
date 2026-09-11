@@ -4,7 +4,7 @@ import ast
 import time
 import secrets
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone
 
 from services.vault_manager import VaultManager, VaultSecurityError

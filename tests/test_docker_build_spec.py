@@ -2,11 +2,15 @@ import os
 import re
 import yaml
 import pytest
+import sys
 from pathlib import Path
-from fastapi.testclient import TestClient
-from gateway_server import app
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from fastapi.testclient import TestClient
+from gateway_server import app
 
 def test_dockerfile_multi_stage_architecture():
     """Verify that Dockerfile implements a secure, hardened multi-stage build."""
@@ -105,3 +109,6 @@ def test_dockerignore_security():
     critical_exclusions = [".git", ".env", "__pycache__", "*.pyc", "*.key", ".pytest_cache"]
     for crit in critical_exclusions:
         assert any(crit in entry for entry in entries), f"Critical exclusion '{crit}' missing from .dockerignore."
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([str(Path(__file__).resolve()), "-v"]))

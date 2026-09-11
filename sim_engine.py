@@ -28,8 +28,20 @@ except ImportError:
     spec_g.loader.exec_module(agent_safety_guardrails)
     intercept_and_validate = agent_safety_guardrails.intercept_and_validate
 
-# Obsidian Daily Logs Directory
-OBSIDIAN_VAULT_PATH = Path(os.environ.get("OBSIDIAN_VAULT_PATH", r"C:\Users\Asus\ObsidianAgentVault"))
+# Obsidian Daily Logs Directory (Cross-Platform / Container-Aware)
+def _resolve_vault_path() -> Path:
+    env_p = os.environ.get("OBSIDIAN_VAULT_PATH") or os.environ.get("VAULT_PATH")
+    if env_p:
+        return Path(env_p)
+    if sys.platform != "win32":
+        if Path("/app/vault").exists():
+            return Path("/app/vault")
+        return Path(CURRENT_DIR) / "vault"
+    if Path(r"C:\Users\Asus\ObsidianAgentVault").exists():
+        return Path(r"C:\Users\Asus\ObsidianAgentVault")
+    return Path(CURRENT_DIR) / "vault"
+
+OBSIDIAN_VAULT_PATH = _resolve_vault_path()
 DAILY_LOGS_DIR = OBSIDIAN_VAULT_PATH / "01_Episodic_Logs" / "Daily_Physics_Logs"
 
 # ==============================================================================
@@ -85,7 +97,10 @@ class GravitonWorld:
         self.reset()
 
     def ensure_daily_log_setup(self):
-        DAILY_LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        try:
+            DAILY_LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            print(f"Warning: Could not create daily log directory {DAILY_LOGS_DIR}: {e}")
 
     def get_today_log_path(self) -> Path:
         today_str = datetime.date.today().strftime("%Y-%m-%d")
