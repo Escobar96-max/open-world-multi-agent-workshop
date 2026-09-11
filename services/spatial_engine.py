@@ -242,5 +242,22 @@ class SpatialEngine:
                 "frequency_lounge": {"x": [50, 100], "y": [50, 100], "default_temp": 1.6}
             },
             "agent_count": len(self.agents),
+            "total_agents": len(self.agents),
             "agents": list(self.agents.values())
         }
+
+    def get_spatial_state(self) -> Dict[str, Any]:
+        """Alias for get_state."""
+        return self.get_state()
+
+    def get_agent(self, agent_id: str) -> Optional[Dict[str, Any]]:
+        """Returns agent spatial record copy if registered."""
+        agent = self.agents.get(agent_id)
+        return dict(agent) if agent is not None else None
+
+    def get_agent_position(self, agent_id: str) -> Optional[Dict[str, Any]]:
+        """Returns x, y, and zone of agent."""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            return None
+        return {"x": agent["x"], "y": agent["y"], "zone": agent["zone"]}

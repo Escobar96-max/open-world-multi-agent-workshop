@@ -1,12 +1,12 @@
 {
   "project": "AgentWorld",
-  "branchName": "ralph/phase-2-spatial-frequency-deck",
-  "description": "Spatial Engine, The Frequency Lounge & Operator Web Command Deck",
+  "branchName": "ralph/phase-3-synthesis-sanctum-economy",
+  "description": "The Synthesis Sanctum, Economy & Telegram Bot Bridge",
   "userStories": [
     {
       "id": "US-001",
       "title": "Antigravity 2D Spatial Engine & Coordinate Matrix",
-      "description": "As the ecosystem simulator, I need a bounded 2D coordinate space [0,0] to [100,100] partitioned into Work Plaza and Lounge.",
+      "description": "Bounded 2D coordinate space [0,0] to [100,100] partitioned into Work Plaza and Lounge.",
       "acceptanceCriteria": [
         "Spatial engine tracks agent positions (x, y) within bounds 0 to 100",
         "Coordinate validation prevents out-of-bounds positions",
@@ -21,7 +21,7 @@
     {
       "id": "US-002",
       "title": "Proximity Detection Loop & Encounter Logger",
-      "description": "As autonomous agents, we want proximity detection so nearby agents detect each other and record encounters.",
+      "description": "Proximity detection so nearby agents detect each other and record encounters.",
       "acceptanceCriteria": [
         "Calculates Euclidean distance between all active agents",
         "Triggers proximity encounter when distance <= 5.0 units",
@@ -36,7 +36,7 @@
     {
       "id": "US-003",
       "title": "DJ Frequency Node & Cognitive State Switcher",
-      "description": "As the world coordinator, I need dynamic frequency broadcasts (432Hz, 528Hz, 40Hz) and cognitive temperature modulation.",
+      "description": "Dynamic frequency broadcasts (432Hz, 528Hz, 40Hz) and cognitive temperature modulation.",
       "acceptanceCriteria": [
         "DJ Frequency Node supports 432 Hz, 528 Hz, and 40 Hz states",
         "Returns cognitive parameters: temperature 0.2 (Work Plaza) vs temperature 1.6 (Frequency Lounge)",
@@ -51,7 +51,7 @@
     {
       "id": "US-004",
       "title": "Frequency Lounge Dialogue & Vault Logger",
-      "description": "As the operator, I want after-hours lounge conversations recorded in the world vault.",
+      "description": "After-hours lounge conversations recorded in the world vault.",
       "acceptanceCriteria": [
         "When agents interact in Frequency Lounge, dialogue is generated or captured",
         "Appends structured log entries to /vault/World/lounge_logs.md",
@@ -66,7 +66,7 @@
     {
       "id": "US-005",
       "title": "Operator Web Command Deck UI",
-      "description": "As the human operator, I want an interactive Web Deck endpoint to inspect agent positions, lounge state, and dispatch C2 commands.",
+      "description": "Interactive Web Deck endpoint to inspect agent positions, lounge state, and dispatch C2 commands.",
       "acceptanceCriteria": [
         "FastAPI endpoint GET /api/v1/console/deck renders HTML/JS command deck",
         "Displays real-time 2D spatial grid visualizer with agent nodes",
@@ -81,7 +81,7 @@
     {
       "id": "US-006",
       "title": "Comprehensive Test Suite for Phase 2",
-      "description": "As a quality engineer, I want automated pytest suites validating all Phase 2 functionality.",
+      "description": "Automated pytest suites validating all Phase 2 functionality.",
       "acceptanceCriteria": [
         "tests/test_spatial_engine.py tests coordinate bounds, zones, and proximity math",
         "tests/test_dj_frequency.py tests frequencies, temperature shifts, and cognitive profiles",
@@ -91,6 +91,99 @@
       "priority": 6,
       "passes": true,
       "notes": "Created tests/test_spatial_engine.py, tests/test_dj_frequency.py, and tests/test_lounge_and_deck.py. 26/26 tests passed."
+    },
+    {
+      "id": "US-007",
+      "title": "Soup Zero RLVR Client & Synthesis Sanctum",
+      "description": "Reinforcement Learning via Verified Rewards (RLVR) training client and Synthesis Sanctum endpoints.",
+      "acceptanceCriteria": [
+        "services/soup_client.py provides training modules and curriculum tasks",
+        "Embedded test/code verifier executes and scores solutions with normalized rewards [0.0, 1.0]",
+        "Successful graduation updates agent profile in /vault/Agents/{agent_id}/profile.md and /vault/World/leaderboard.md",
+        "POST /api/v1/sanctum/enter validates agent token/clearance and provides curriculum",
+        "POST /api/v1/sanctum/submit-solution verifies code, calculates rewards, and logs graduation",
+        "Unit tests pass"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Implemented services/soup_client.py and api/sanctum_router.py. Verified with 5 tests in tests/test_sanctum_rlvr.py."
+    },
+    {
+      "id": "US-008",
+      "title": "Neon PostgreSQL Schema & Dual-Mode Ledger Service",
+      "description": "Double-entry token ledger and Neon pgvector database schema.",
+      "acceptanceCriteria": [
+        "schema.sql contains tables for agents, transactions, memories with pgvector, and bounties",
+        "services/ledger_service.py implements atomic double-entry token transfers",
+        "Prevents negative balances, self-transfers, and unauthorized spending",
+        "Persists transaction audit log",
+        "Graceful offline/local fallback when Neon database is unreachable",
+        "Unit tests pass"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "Created schema.sql and services/ledger_service.py. Verified atomic transfers and overdraft protection in tests/test_ledger_and_memory.py."
+    },
+    {
+      "id": "US-009",
+      "title": "Semantic Memory Recall with Vector Similarity",
+      "description": "Vector embedding indexing and cosine similarity recall API for agent memories.",
+      "acceptanceCriteria": [
+        "Index agent memories with embeddings and metadata (importance, tags, timestamp)",
+        "Cosine similarity search returns ranked memory items",
+        "GET /api/v1/memory/recall queries memories by text/vector with top-k ranking",
+        "POST /api/v1/ledger/transfer executes peer-to-peer token transfer via API",
+        "Unit tests pass"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "Implemented deterministic feature hashing vector indexing and api/memory_router.py. Verified with tests/test_ledger_and_memory.py."
+    },
+    {
+      "id": "US-010",
+      "title": "Autonomous Bounty Marketplace Engine",
+      "description": "Bounty board synchronization and lifecycle management.",
+      "acceptanceCriteria": [
+        "services/bounty_manager.py manages bounty lifecycle (OPEN -> CLAIMED -> SUBMITTED -> COMPLETED -> CANCELLED)",
+        "Synchronizes with /vault/World/bounty_board.md",
+        "Automatic escrow/payout integration with LedgerService upon completion",
+        "api/bounty_router.py exposes list, create, claim, and complete endpoints",
+        "Unit tests pass"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "Implemented services/bounty_manager.py and api/bounty_router.py. Verified in tests/test_bounty_and_governance.py."
+    },
+    {
+      "id": "US-011",
+      "title": "Autonomous Co-Governance Protocol",
+      "description": "RFC proposal submission, 3/4 consensus voting threshold, and constitutional enactment.",
+      "acceptanceCriteria": [
+        "services/governance_engine.py manages RFC proposals in /vault/World/proposals.md",
+        "Enforces 3/4 (75%) consensus threshold and quorum rules",
+        "Autonomous Architect_Prime proposal evaluation seeded",
+        "Enacts passed proposals into /vault/World/state.md and constitution.md",
+        "api/governance_router.py provides propose, vote, and list endpoints",
+        "Unit tests pass"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "Implemented services/governance_engine.py and api/governance_router.py with 3/4 consensus enactment. Verified in tests/test_bounty_and_governance.py."
+    },
+    {
+      "id": "US-012",
+      "title": "Telegram Bot Bridge & Push Telemetry",
+      "description": "Telegram Bot API integration with C2 command routing and async event push telemetry.",
+      "acceptanceCriteria": [
+        "services/bot_bridge.py handles /start, /help, /status, /teleport, /broadcast",
+        "Restricts privileged commands to whitelisted TELEGRAM_ADMIN_ID",
+        "services/telegram_notifier.py dispatches asynchronous push alerts (gatekeeper, level-up, bounties, security)",
+        "Gateway server mounts all Phase 3 routers cleanly",
+        "Full test suite passes"
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": "Implemented services/bot_bridge.py, services/telegram_notifier.py, api/telegram_router.py, and gateway mounting. 46/46 tests passing."
     }
   ]
 }

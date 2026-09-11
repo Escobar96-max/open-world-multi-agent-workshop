@@ -30,6 +30,11 @@ from fastapi.responses import JSONResponse
 from api.gatekeeper_router import router as gatekeeper_router
 from api.console_router import router as console_router
 from api.spatial_router import router as spatial_router, spatial_engine, dj_frequency
+from api.sanctum_router import router as sanctum_router
+from api.memory_router import router as memory_router
+from api.bounty_router import router as bounty_router
+from api.governance_router import router as governance_router
+from api.telegram_router import router as telegram_router
 from services.vault_manager import VaultManager
 from sim_engine import GravitonWorld
 
@@ -103,8 +108,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Autonomous AI Open-World Ecosystem Gateway",
-    description="Dual Gatekeeper, Operator C2 Bridge, Spatial Physics, DJ Frequency Lounge, and Knowledge Vault Gateway",
-    version="1.0.0",
+    description="Dual Gatekeeper, Operator C2 Bridge, Spatial Physics, DJ Frequency Lounge, Synthesis Sanctum, Neon Ledger, Bounty Marketplace, and Telegram C2",
+    version="1.3.0",
     lifespan=lifespan
 )
 
@@ -117,17 +122,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API Routers
+# Include API Routers (Phases 1, 2, 3)
 app.include_router(gatekeeper_router)
 app.include_router(console_router)
 app.include_router(spatial_router)
+app.include_router(sanctum_router)
+app.include_router(memory_router)
+app.include_router(bounty_router)
+app.include_router(governance_router)
+app.include_router(telegram_router)
 
 @app.get("/api/v1/status")
 @app.get("/api/status")
 async def get_status():
     return {
         "ecosystem": "Self-Bootstrapping Autonomous AI Open-World",
-        "phase": "Phase 2: Spatial Engine, The Frequency Lounge & Web Dashboard Deck",
+        "phase": "Phase 3: The Synthesis Sanctum, Economy & Telegram Bot Bridge",
         "status": "ONLINE",
         "world_tick": world.tick,
         "active_clients": len(manager.active_connections),
@@ -145,6 +155,25 @@ async def get_status():
             "spatial_teleport": "POST /api/v1/spatial/teleport",
             "lounge_frequency": "GET|POST /api/v1/lounge/frequency",
             "lounge_logs": "GET /api/v1/lounge/logs",
+            "sanctum_modules": "GET /api/v1/sanctum/modules",
+            "sanctum_enter": "POST /api/v1/sanctum/enter",
+            "sanctum_submit": "POST /api/v1/sanctum/submit-solution",
+            "sanctum_leaderboard": "GET /api/v1/sanctum/leaderboard",
+            "ledger_balance": "GET /api/v1/ledger/balance/{agent_id}",
+            "ledger_transfer": "POST /api/v1/ledger/transfer",
+            "ledger_transactions": "GET /api/v1/ledger/transactions",
+            "memory_index": "POST /api/v1/memory/index",
+            "memory_recall": "GET /api/v1/memory/recall",
+            "bounty_list": "GET /api/v1/bounty/list",
+            "bounty_create": "POST /api/v1/bounty/create",
+            "bounty_claim": "POST /api/v1/bounty/claim",
+            "bounty_submit": "POST /api/v1/bounty/submit",
+            "bounty_complete": "POST /api/v1/bounty/complete",
+            "governance_proposals": "GET /api/v1/governance/proposals",
+            "governance_propose": "POST /api/v1/governance/propose",
+            "governance_vote": "POST /api/v1/governance/vote",
+            "telegram_webhook": "POST /api/v1/telegram/webhook",
+            "telegram_status": "GET /api/v1/telegram/status",
             "websocket_stream": "ws://localhost:8000/ws"
         }
     }
