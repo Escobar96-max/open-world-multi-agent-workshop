@@ -11,6 +11,7 @@
 
 # Python Virtual Environments & Caches
 __pycache__
+*.pyc
 *.py[cod]
 *$py.class
 .venv
