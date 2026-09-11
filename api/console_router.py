@@ -52,214 +52,375 @@ async def execute_console_command(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal C2 failure: {str(e)}")
 
-@router.get("/deck", response_class=HTMLResponse, summary="Operator Web Command Deck UI")
+@router.get("/deck", response_class=HTMLResponse, summary="Unified Operator C2 & Autonomous Open World Command Deck")
 async def get_web_command_deck():
     """
-    Mounts the full Operator Web Command Deck UI on GET /api/v1/console/deck:
+    Mounts the Unified Operator C2 Command Deck & Autonomous Open-World Visualizer
+    on GET /api/v1/console/deck:
     - 2D Spatial Plane Visualizer (Work Plaza 0-50 vs Frequency Lounge 51-100)
-    - Proximity Detection Halo & Live Agent Nodes
+    - GravitonWorld Physics Engine (0.0g float, 0.4g moon, 1.0g earth, -1.2g singularity)
+    - Dynamic Weather Particle Engine (Clear, Rain, Storm, Lightning, Radiation Fallback)
+    - Dual-Buffer Cognitive Memory Vault (Hot, Cold, Tombstones & Consolidation)
     - Live Web Audio Harmonic Synthesizer (432Hz, 528Hz, 40Hz)
-    - Real-Time Telemetry & Lounge Dialogue Feed
-    - Direct C2 Command Terminal
+    - Proximity Radar Halo & Real-Time Agent Telemetry
+    - C2 Command Terminal with Full Slash & Physics Directives
     """
     html_content = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Operator C2 Command Deck | Antigravity Open-World</title>
+  <title>OPERATOR C2 COMMAND DECK & AUTONOMOUS OPEN WORLD</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;800&family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'JetBrains Mono', monospace; }
     .heading-font { font-family: 'Outfit', sans-serif; }
     .neon-border-cyan { box-shadow: 0 0 15px rgba(6, 182, 212, 0.25); }
     .neon-border-pink { box-shadow: 0 0 15px rgba(236, 72, 153, 0.25); }
-    .glass-card { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(51, 65, 85, 0.6); }
+    .neon-border-amber { box-shadow: 0 0 15px rgba(245, 158, 11, 0.25); }
+    .glass-card { background: rgba(10, 15, 30, 0.78); backdrop-filter: blur(14px); border: 1px solid rgba(51, 65, 85, 0.6); }
+    .active-mode { outline: 2px solid #38bdf8; box-shadow: 0 0 12px rgba(56, 189, 248, 0.5); }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(5, 8, 17, 0.9); }
+    ::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.8); rounded: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(6, 182, 212, 0.6); }
   </style>
 </head>
-<body class="bg-[#050811] text-slate-200 min-h-screen flex flex-col p-4 md:p-6 selection:bg-cyan-500 selection:text-black">
-  <!-- Top Navigation & Status Bar -->
-  <header class="border-b border-slate-800/80 pb-4 mb-6 flex flex-wrap justify-between items-center gap-4">
+<body class="bg-[#040711] text-slate-200 min-h-screen flex flex-col p-3 md:p-5 selection:bg-cyan-500 selection:text-black">
+
+  <!-- Top Master Navigation & Telemetry HUD -->
+  <header class="border-b border-slate-800/90 pb-3 mb-4 flex flex-wrap justify-between items-center gap-3">
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 via-indigo-600 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-        <span class="text-white text-xl">🌐</span>
+      <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-cyan-500/25">
+        <span class="text-white text-2xl">🌌</span>
       </div>
       <div>
-        <h1 class="heading-font text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-200 to-indigo-300 tracking-wide flex items-center gap-2">
+        <h1 class="heading-font text-lg md:text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-200 to-fuchsia-300 tracking-wide flex items-center gap-2">
           OPERATOR C2 COMMAND DECK
-          <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-            <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span> PHASE 2 ONLINE
+          <span class="text-slate-500 text-xs font-normal">|</span>
+          <span class="text-cyan-300 text-sm font-semibold tracking-normal">AUTONOMOUS OPEN WORLD</span>
+          <span id="wsStatusBadge" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span> <span id="wsStatusText">SYNCED (WS :8000)</span>
           </span>
         </h1>
-        <p class="text-xs text-slate-400 font-mono mt-0.5">2D Spatial Engine • Proximity Loops • DJ Lounge Harmonics • C2 Base</p>
+        <div class="flex items-center gap-3 text-[11px] text-slate-400 font-mono mt-0.5">
+          <span>Tick: <strong id="hudTick" class="text-cyan-300">#0</strong></span>
+          <span>•</span>
+          <span>Core Stability: <strong id="hudStability" class="text-emerald-400">100%</strong></span>
+          <span>•</span>
+          <span>Gravity: <strong id="hudGravity" class="text-amber-300">1.0g Earth</strong></span>
+          <span>•</span>
+          <span>Weather: <strong id="hudWeather" class="text-sky-300">Clear ☀️</strong></span>
+        </div>
       </div>
     </div>
 
-    <!-- Acoustic DJ Frequency Synthesizer Widget -->
-    <div class="glass-card rounded-xl px-4 py-2 flex items-center gap-4 border border-cyan-500/30">
+    <!-- Acoustic DJ Frequency & Audio Synthesizer Widget -->
+    <div class="glass-card rounded-xl px-3.5 py-1.5 flex items-center gap-3 border border-cyan-500/30">
       <div class="flex items-center gap-2">
-        <span class="text-lg">📻</span>
+        <span class="text-base">📻</span>
         <div>
-          <div class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">DJ FREQUENCY</div>
-          <div id="activeFreqDisplay" class="text-sm font-extrabold text-cyan-300">432 Hz</div>
+          <div class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">DJ FREQUENCY</div>
+          <div id="activeFreqDisplay" class="text-xs font-extrabold text-cyan-300">432 Hz</div>
         </div>
       </div>
-      <div class="flex items-center gap-1.5 bg-slate-950/80 p-1 rounded-lg border border-slate-800">
-        <button onclick="shiftFrequency(432)" class="px-2 py-1 text-[11px] rounded font-bold transition hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20">432Hz</button>
-        <button onclick="shiftFrequency(528)" class="px-2 py-1 text-[11px] rounded font-bold transition hover:bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/20">528Hz</button>
-        <button onclick="shiftFrequency(40)" class="px-2 py-1 text-[11px] rounded font-bold transition hover:bg-amber-500/20 text-amber-400 border border-amber-500/20">40Hz</button>
+      <div class="flex items-center gap-1 bg-slate-950/80 p-0.5 rounded-lg border border-slate-800">
+        <button id="freqBtn432" onclick="shiftFrequency(432)" class="px-2 py-1 text-[10px] rounded font-bold transition bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">432Hz</button>
+        <button id="freqBtn528" onclick="shiftFrequency(528)" class="px-2 py-1 text-[10px] rounded font-bold transition hover:bg-fuchsia-500/20 text-fuchsia-400 border border-transparent">528Hz</button>
+        <button id="freqBtn40" onclick="shiftFrequency(40)" class="px-2 py-1 text-[10px] rounded font-bold transition hover:bg-amber-500/20 text-amber-400 border border-transparent">40Hz</button>
       </div>
-      <button id="audioToggleBtn" onclick="toggleWebAudioTone()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs" title="Toggle Local Harmonic Sound">
+      <button id="audioToggleBtn" onclick="toggleWebAudioTone()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-bold" title="Toggle Local Harmonic Sound">
         🔊 Tone Off
       </button>
     </div>
   </header>
 
-  <!-- Main Grid: Spatial Visualizer (Center), C2 Controller (Left), Telemetry & Lounge (Right) -->
-  <main class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
+  <!-- Global Action & Simulation Control Bar -->
+  <section class="glass-card rounded-xl p-2.5 mb-4 flex flex-wrap items-center justify-between gap-3 border border-slate-800">
+    <!-- Graviton World Physics Controls -->
+    <div class="flex items-center gap-2 text-xs">
+      <span class="text-slate-400 font-bold flex items-center gap-1">
+        <span>🪐</span> GRAVITY:
+      </span>
+      <div class="flex items-center gap-1 bg-black/50 p-1 rounded-lg border border-slate-800">
+        <button id="gBtn_0" onclick="setGravity('0.0g')" class="px-2 py-1 text-[11px] rounded font-semibold text-slate-300 hover:text-cyan-300 hover:bg-cyan-500/10">0.0g Float</button>
+        <button id="gBtn_04" onclick="setGravity('0.4g')" class="px-2 py-1 text-[11px] rounded font-semibold text-slate-300 hover:text-cyan-300 hover:bg-cyan-500/10">0.4g Low</button>
+        <button id="gBtn_1" onclick="setGravity('1.0g')" class="px-2 py-1 text-[11px] rounded font-semibold text-cyan-400 bg-cyan-500/20 border border-cyan-500/30">1.0g Earth</button>
+        <button id="gBtn_sing" onclick="setGravity('-1.2g')" class="px-2 py-1 text-[11px] rounded font-semibold text-rose-400 hover:bg-rose-500/20">-1.2g Singularity</button>
+      </div>
+    </div>
+
+    <!-- Weather Engine Simulator Controls -->
+    <div class="flex items-center gap-2 text-xs">
+      <span class="text-slate-400 font-bold flex items-center gap-1">
+        <span>🌦️</span> WEATHER:
+      </span>
+      <div class="flex items-center gap-1 bg-black/50 p-1 rounded-lg border border-slate-800">
+        <button id="wBtn_clear" onclick="setWeather('clear')" class="px-2 py-1 text-[11px] rounded font-semibold text-amber-300 bg-amber-500/20 border border-amber-500/30">☀️ Clear</button>
+        <button id="wBtn_rain" onclick="setWeather('rain')" class="px-2 py-1 text-[11px] rounded font-semibold text-slate-300 hover:text-sky-300 hover:bg-sky-500/10">🌧️ Rain</button>
+        <button id="wBtn_storm" onclick="setWeather('storm')" class="px-2 py-1 text-[11px] rounded font-semibold text-slate-300 hover:text-indigo-300 hover:bg-indigo-500/10">⚡ Storm</button>
+        <button id="wBtn_rad" onclick="setWeather('radiation_fallback')" class="px-2 py-1 text-[11px] rounded font-semibold text-slate-300 hover:text-purple-300 hover:bg-purple-500/10">☢️ Rad</button>
+      </div>
+    </div>
+
+    <!-- Simulation Tick & Anomaly Triggers -->
+    <div class="flex items-center gap-1.5 text-xs">
+      <button onclick="stepSimulationTick()" class="px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg font-bold shadow transition flex items-center gap-1">
+        <span>⏩</span> Step Tick
+      </button>
+      <button onclick="triggerSingularityAnomaly()" class="px-2.5 py-1.5 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-700/60 rounded-lg font-bold transition flex items-center gap-1">
+        <span>💥</span> Anomaly
+      </button>
+      <button onclick="resetWorldSimulation()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg font-bold transition flex items-center gap-1">
+        <span>🔄</span> Reset
+      </button>
+      <button onclick="triggerMemoryConsolidation()" class="px-2.5 py-1.5 bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-700/60 rounded-lg font-bold transition flex items-center gap-1" title="Trigger Dual-Buffer Memory Consolidation">
+        <span>🧠</span> Consolidate
+      </button>
+    </div>
+  </section>
+
+  <!-- Main Unified 3-Column Layout -->
+  <main class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1">
     
-    <!-- Left Column: C2 Command & Teleport (Col 1-4) -->
-    <div class="lg:col-span-4 flex flex-col gap-6">
-      <!-- C2 Command Transmitter -->
-      <div class="glass-card rounded-2xl p-5 flex flex-col border border-cyan-500/20">
-        <h2 class="heading-font text-sm font-bold text-cyan-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-          <span>⚡ Operator C2 Dispatcher</span>
-        </h2>
+    <!-- LEFT COLUMN (4 Cols): C2 Dispatcher, Quick Actions & Memory Vault Drawer -->
+    <div class="lg:col-span-4 flex flex-col gap-4">
+      
+      <!-- Operator C2 Directive Dispatcher -->
+      <div class="glass-card rounded-2xl p-4 flex flex-col border border-cyan-500/25">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="heading-font text-xs font-black text-cyan-300 uppercase tracking-wider flex items-center gap-2">
+            <span>⚡ Operator C2 Dispatcher</span>
+          </h2>
+          <span class="text-[10px] text-slate-400 font-mono">X-Admin-Key Secured</span>
+        </div>
 
-        <div class="space-y-3 flex-1 text-xs">
-          <div>
-            <label class="block text-[11px] font-semibold text-slate-400 mb-1">ADMIN SECRET KEY</label>
-            <input id="adminKey" type="password" placeholder="Enter ADMIN_SECRET_KEY..." class="w-full bg-slate-950/90 border border-slate-700/80 rounded-lg px-3 py-2 text-cyan-200 font-mono focus:border-cyan-400 focus:outline-none" />
+        <div class="space-y-2.5 text-xs">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 mb-0.5">ADMIN SECRET KEY</label>
+              <input id="adminKey" type="password" value="op_secret_master_key_9921" placeholder="Admin Key..." class="w-full bg-slate-950/90 border border-slate-700 rounded px-2.5 py-1.5 text-cyan-300 font-mono text-xs focus:border-cyan-400 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 mb-0.5">TARGET AGENT</label>
+              <select id="targetAgentSelect" class="w-full bg-slate-950/90 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 font-mono text-xs focus:border-cyan-400 focus:outline-none">
+                <option value="Sentinel_Alpha">Sentinel_Alpha (Plaza)</option>
+                <option value="Curator_Node">Curator_Node (Lounge)</option>
+                <option value="Vector-09">Vector-09 (Physics)</option>
+                <option value="Dr._Aris">Dr._Aris (Director)</option>
+                <option value="A.E.G.I.S.">A.E.G.I.S. (Safety AI)</option>
+                <option value="Unit-404">Unit-404 (Kinetic)</option>
+                <option value="Bob">Bob (Worker)</option>
+                <option value="Alice">Alice (Researcher)</option>
+              </select>
+            </div>
           </div>
 
           <div>
-            <label class="block text-[11px] font-semibold text-slate-400 mb-1">TARGET AGENT</label>
-            <select id="targetAgentSelect" class="w-full bg-slate-950/90 border border-slate-700/80 rounded-lg px-3 py-2 text-slate-200 font-mono focus:border-cyan-400 focus:outline-none">
-              <option value="Sentinel_Alpha">Sentinel_Alpha (Work Plaza)</option>
-              <option value="Curator_Node">Curator_Node (Frequency Lounge)</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-[11px] font-semibold text-slate-400 mb-1">SLASH COMMAND / NATURAL DIRECTIVE</label>
-            <textarea id="cmdInput" rows="3" placeholder="/teleport Sentinel_Alpha 70 70&#10;or: Engage in philosophical debate with Curator_Node." class="w-full bg-slate-950/90 border border-slate-700/80 rounded-lg px-3 py-2 text-slate-200 font-mono focus:border-cyan-400 focus:outline-none"></textarea>
+            <div class="flex justify-between items-center mb-0.5">
+              <label class="block text-[10px] font-bold text-slate-400">SLASH DIRECTIVE / NL OVERRIDE</label>
+              <span class="text-[10px] text-slate-500 font-mono">/teleport, /gravity, /weather, /freq, /step</span>
+            </div>
+            <textarea id="cmdInput" rows="2" placeholder="/teleport Sentinel_Alpha 75 75&#10;or: /gravity 0.4g&#10;or: Priority directive to target agent..." class="w-full bg-slate-950/90 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 font-mono text-xs focus:border-cyan-400 focus:outline-none"></textarea>
           </div>
 
           <div class="flex gap-2">
-            <button onclick="dispatchCommand()" class="flex-1 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black rounded-lg transition shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2">
+            <button onclick="dispatchCommand()" class="flex-1 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black rounded-lg transition shadow-lg shadow-cyan-500/20 text-xs flex items-center justify-center gap-1.5">
               <span>TRANSMIT C2 DIRECTIVE</span> ➔
             </button>
-            <button onclick="stepSimulationTick()" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-lg font-bold border border-slate-700" title="Step Simulation 1 Tick">
-              ⏩ Step
+            <button onclick="runAutoHealTest()" class="px-2.5 py-2 bg-emerald-950/70 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/50 rounded-lg font-bold text-xs" title="Run Phase 4 DevLoop Self-Healing Test">
+              🩺 Self-Heal
             </button>
           </div>
         </div>
 
-        <!-- Quick Teleport Shortcuts -->
-        <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px]">
-          <span class="text-slate-400 font-bold block mb-2">QUICK ZONE TELEPORT:</span>
-          <div class="grid grid-cols-2 gap-2">
-            <button onclick="quickTeleport('Work Plaza')" class="px-2 py-1.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-700/40 hover:bg-emerald-900/60 font-mono text-center">
+        <!-- Quick Teleport Coordinates -->
+        <div class="mt-3 pt-2.5 border-t border-slate-800/80 text-[10px]">
+          <span class="text-slate-400 font-bold block mb-1.5">QUICK SPATIAL MATRIX TELEPORT:</span>
+          <div class="grid grid-cols-2 gap-2 font-mono">
+            <button onclick="quickTeleport('Work Plaza')" class="px-2 py-1.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-700/40 hover:bg-emerald-900/60 text-center">
               🏢 Work Plaza (25, 25)
             </button>
-            <button onclick="quickTeleport('Frequency Lounge')" class="px-2 py-1.5 rounded bg-fuchsia-950/60 text-fuchsia-300 border border-fuchsia-700/40 hover:bg-fuchsia-900/60 font-mono text-center">
+            <button onclick="quickTeleport('Frequency Lounge')" class="px-2 py-1.5 rounded bg-fuchsia-950/60 text-fuchsia-300 border border-fuchsia-700/40 hover:bg-fuchsia-900/60 text-center">
               🍸 Lounge (75, 75)
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Live Terminal Output -->
-      <div class="glass-card rounded-2xl p-4 flex-1 flex flex-col border border-slate-800">
+      <!-- Cognitive Dual-Buffer Memory Consolidation Vault -->
+      <div class="glass-card rounded-2xl p-3.5 flex flex-col border border-indigo-500/25">
         <div class="flex justify-between items-center mb-2">
-          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">📡 C2 Audit Stream</span>
-          <button onclick="clearTerminal()" class="text-[10px] text-slate-500 hover:text-slate-300">Clear</button>
+          <h3 class="heading-font text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+            <span>🧠 Dual-Buffer Memory Vault</span>
+          </h3>
+          <span id="consolidationBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">IDLE</span>
         </div>
-        <div id="c2Terminal" class="bg-black/80 rounded-lg p-3 text-[11px] font-mono flex-1 overflow-y-auto max-h-[220px] space-y-1.5 border border-slate-900">
-          <div class="text-emerald-400">[READY] C2 Gateway initialized.</div>
-          <div class="text-slate-400">[SPATIAL] 2D Matrix online. Bounds: [0,0] - [100,100].</div>
+
+        <!-- Memory Buffer Counts -->
+        <div class="grid grid-cols-3 gap-2 text-center font-mono my-1">
+          <div class="p-1.5 rounded-lg bg-slate-950/70 border border-slate-800">
+            <div class="text-[10px] text-amber-400">🔥 HOT BUFFER</div>
+            <div id="memHotCount" class="text-sm font-extrabold text-white">0</div>
+          </div>
+          <div class="p-1.5 rounded-lg bg-slate-950/70 border border-slate-800">
+            <div class="text-[10px] text-cyan-400">❄️ COLD VAULT</div>
+            <div id="memColdCount" class="text-sm font-extrabold text-white">0</div>
+          </div>
+          <div class="p-1.5 rounded-lg bg-slate-950/70 border border-slate-800">
+            <div class="text-[10px] text-slate-400">🪦 TOMBSTONES</div>
+            <div id="memTombCount" class="text-sm font-extrabold text-white">0</div>
+          </div>
+        </div>
+
+        <!-- Tombstone Recovery Input -->
+        <div class="mt-2 flex gap-1.5">
+          <input id="recoverInput" type="text" placeholder="Tombstoned filename (e.g. mem_xxx.md)..." class="flex-1 bg-slate-950/90 border border-slate-700/80 rounded px-2 py-1 text-[11px] font-mono text-slate-200 focus:border-indigo-400 focus:outline-none" />
+          <button onclick="recoverMemoryFile()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-700/50 rounded text-[11px] font-bold">
+            Recover
+          </button>
         </div>
       </div>
+
+      <!-- Real-Time C2 Audit Log Terminal -->
+      <div class="glass-card rounded-2xl p-3.5 flex-1 flex flex-col border border-slate-800">
+        <div class="flex justify-between items-center mb-1.5">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">📡 C2 Audit & Physics Stream</span>
+          <button onclick="clearTerminal()" class="text-[10px] text-slate-500 hover:text-slate-300 font-mono">Clear</button>
+        </div>
+        <div id="c2Terminal" class="bg-black/85 rounded-lg p-2.5 text-[10px] font-mono flex-1 overflow-y-auto max-h-[160px] space-y-1 border border-slate-900">
+          <div class="text-emerald-400">[SYSTEM READY] Operator C2 & Graviton Open-World Gateway Unified.</div>
+          <div class="text-slate-400">[STREAM] WebSocket connected to ws://localhost:8000/ws.</div>
+        </div>
+      </div>
+
     </div>
 
-    <!-- Center Column: 2D Spatial Plane Grid Visualizer (Col 5-8) -->
-    <div class="lg:col-span-5 flex flex-col gap-4">
-      <div class="glass-card rounded-2xl p-5 flex flex-col flex-1 border border-cyan-500/20">
-        <div class="flex justify-between items-center mb-3">
+    <!-- CENTER COLUMN (5 Cols): Unified 2D Spatial & Graviton Physics Canvas -->
+    <div class="lg:col-span-5 flex flex-col gap-3">
+      <div class="glass-card rounded-2xl p-4 flex flex-col flex-1 border border-cyan-500/25">
+        <div class="flex justify-between items-center mb-2.5">
           <div class="flex items-center gap-2">
-            <h2 class="heading-font text-sm font-bold text-slate-200 uppercase tracking-wider">🗺️ 2D Antigravity Spatial Grid</h2>
-            <span class="text-[10px] bg-slate-800 text-cyan-300 px-2 py-0.5 rounded font-mono">100 x 100</span>
+            <h2 class="heading-font text-xs font-black text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🗺️ Unified 2D Spatial & Physics Matrix</span>
+            </h2>
+            <span class="text-[9px] bg-slate-800 text-cyan-300 px-1.5 py-0.5 rounded font-mono">100 x 100 Coords</span>
           </div>
-          <div class="flex items-center gap-3 text-[11px]">
+          <div class="flex items-center gap-2.5 text-[10px] font-mono">
             <span class="flex items-center gap-1 text-emerald-400">
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Work Plaza (Temp 0.2)
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Plaza (0.2T)
             </span>
             <span class="flex items-center gap-1 text-fuchsia-400">
-              <span class="w-2.5 h-2.5 rounded-full bg-fuchsia-500"></span> Lounge (Temp 1.6)
+              <span class="w-2 h-2 rounded-full bg-fuchsia-500"></span> Lounge (1.6T)
             </span>
           </div>
         </div>
 
-        <!-- 2D Canvas Visualizer -->
-        <div class="relative w-full aspect-square bg-[#03060d] rounded-xl overflow-hidden border border-slate-800 shadow-inner flex items-center justify-center">
-          <canvas id="spatialCanvas" width="500" height="500" class="w-full h-full cursor-crosshair"></canvas>
-          <div class="absolute bottom-2 left-2 text-[10px] text-slate-500 bg-black/60 px-2 py-1 rounded backdrop-blur font-mono pointer-events-none">
-            Click grid to teleport selected agent
+        <!-- High-Performance Unified 2D Canvas -->
+        <div class="relative w-full aspect-square bg-[#02050c] rounded-xl overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center">
+          <canvas id="spatialCanvas" width="550" height="550" class="w-full h-full cursor-crosshair"></canvas>
+          
+          <!-- Interactive Canvas Overlays -->
+          <div class="absolute bottom-2 left-2 text-[10px] text-slate-400 bg-black/75 px-2 py-1 rounded backdrop-blur font-mono pointer-events-none border border-slate-800">
+            Click grid to teleport <span id="overlaySelectedAgent" class="text-cyan-300 font-bold">Sentinel_Alpha</span>
           </div>
+
+          <div id="lightningOverlay" class="absolute inset-0 bg-white pointer-events-none opacity-0 transition-opacity duration-75"></div>
         </div>
 
-        <!-- Proximity Status Alert Banner -->
-        <div id="proximityAlert" class="mt-3 p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-mono flex items-center justify-between text-slate-400">
-          <span>Proximity Threshold: <strong class="text-cyan-300">&le; 5.0 units</strong></span>
-          <span id="proximityStatus" class="text-emerald-400">Scanning positions...</span>
+        <!-- Proximity & Environmental Telemetry Bar -->
+        <div id="proximityAlert" class="mt-2.5 p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] font-mono flex items-center justify-between text-slate-400">
+          <span>Encounter Radius: <strong class="text-cyan-300">&le; 5.0u</strong></span>
+          <span id="proximityStatus" class="text-emerald-400 font-bold">Agents in safe separation.</span>
         </div>
       </div>
     </div>
 
-    <!-- Right Column: Lounge Dialogues & Agent Cards (Col 9-12) -->
-    <div class="lg:col-span-3 flex flex-col gap-6">
-      <!-- Agent Status Telemetry Cards -->
-      <div class="glass-card rounded-2xl p-4 border border-slate-800">
-        <h3 class="heading-font text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">👥 Active Agent Telemetry</h3>
-        <div id="agentCardsContainer" class="space-y-2.5">
-          <!-- Populated by JavaScript -->
-          <div class="text-xs text-slate-500">Loading agents...</div>
+    <!-- RIGHT COLUMN (3 Cols): Agent Telemetry & Frequency Lounge Dialogue Feed -->
+    <div class="lg:col-span-3 flex flex-col gap-4">
+      
+      <!-- Active Agent Telemetry Cards -->
+      <div class="glass-card rounded-2xl p-3.5 border border-slate-800">
+        <div class="flex justify-between items-center mb-2.5">
+          <h3 class="heading-font text-xs font-bold text-slate-300 uppercase tracking-wider">👥 Active Agents Telemetry</h3>
+          <span id="agentCountBadge" class="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40">2 Active</span>
+        </div>
+        <div id="agentCardsContainer" class="space-y-2 overflow-y-auto max-h-[220px]">
+          <div class="text-xs text-slate-500 font-mono">Detecting agent telemetry...</div>
         </div>
       </div>
 
-      <!-- Lounge Dialogue Stream -->
-      <div class="glass-card rounded-2xl p-4 flex-1 flex flex-col border border-fuchsia-500/20">
-        <div class="flex justify-between items-center mb-3">
-          <h3 class="heading-font text-xs font-bold text-fuchsia-300 uppercase tracking-wider flex items-center gap-2">
-            <span>🍸 The Frequency Lounge Stream</span>
+      <!-- Frequency Lounge Dialogue Feed -->
+      <div class="glass-card rounded-2xl p-3.5 flex-1 flex flex-col border border-fuchsia-500/25">
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="heading-font text-xs font-bold text-fuchsia-300 uppercase tracking-wider flex items-center gap-1.5">
+            <span>🍸 The Frequency Lounge</span>
           </h3>
-          <button onclick="postSimulatedDialogue()" class="text-[10px] bg-fuchsia-950/80 hover:bg-fuchsia-900 text-fuchsia-300 border border-fuchsia-700/50 px-2 py-1 rounded">
+          <button onclick="postSimulatedDialogue()" class="text-[10px] bg-fuchsia-950/80 hover:bg-fuchsia-900 text-fuchsia-300 border border-fuchsia-700/50 px-2 py-0.5 rounded font-mono">
             + Banter
           </button>
         </div>
-        <div id="loungeDialogueStream" class="bg-black/60 rounded-xl p-3 flex-1 overflow-y-auto max-h-[300px] space-y-2.5 text-xs font-mono border border-slate-900">
-          <div class="text-slate-500">Connecting to /vault/World/lounge_logs.md...</div>
+        <div id="loungeDialogueStream" class="bg-black/60 rounded-xl p-2.5 flex-1 overflow-y-auto max-h-[240px] space-y-2 text-xs font-mono border border-slate-900">
+          <div class="text-slate-500 text-[11px]">Connecting to /vault/World/lounge_logs.md...</div>
         </div>
       </div>
+
+      <!-- Environmental Sensors HUD -->
+      <div class="glass-card rounded-xl p-3 border border-slate-800 text-[11px] font-mono">
+        <div class="text-[10px] text-slate-400 font-bold uppercase mb-1.5">🛰️ Environmental Sensor Telemetry</div>
+        <div class="grid grid-cols-2 gap-1.5 text-slate-300">
+          <div>Condition: <span id="envCondition" class="text-cyan-300 font-bold">Clear</span></div>
+          <div>Wind Vector: <span id="envWind" class="text-slate-200">1.2 m/s</span></div>
+          <div>Lightning: <span id="envLightning" class="text-emerald-400">INACTIVE</span></div>
+          <div>Comfort Idx: <span id="envComfort" class="text-amber-300">0.94</span></div>
+        </div>
+      </div>
+
     </div>
 
   </main>
 
-  <!-- JavaScript Application Controller -->
+  <!-- JavaScript Controller & 60FPS Unified Canvas Engine -->
   <script>
+    // State Variables
     let currentFrequency = 432;
     let audioCtx = null;
     let oscillator = null;
     let gainNode = null;
     let isAudioPlaying = false;
+    
     let worldState = null;
+    let spatialState = null;
+    let memoryStats = null;
+    let ws = null;
+    let particles = [];
+    let lightningTimer = 0;
 
-    // Canvas Setup
+    // Canvas
     const canvas = document.getElementById('spatialCanvas');
     const ctx = canvas.getContext('2d');
 
-    // Click canvas to teleport selected agent
+    // Initialize 100 Dynamic Weather & Graviton Physics Particles
+    function initParticles() {
+      particles = Array.from({ length: 90 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 1.0,
+        vy: Math.random() * 2.0 + 1.0,
+        size: Math.random() * 2.2 + 0.8,
+        alpha: Math.random() * 0.7 + 0.2
+      }));
+    }
+    initParticles();
+
+    // Target Agent Selection Sync
+    const targetSelect = document.getElementById('targetAgentSelect');
+    targetSelect.addEventListener('change', (e) => {
+      document.getElementById('overlaySelectedAgent').innerText = e.target.value;
+    });
+
+    // Click Canvas to Teleport Selected Agent
     canvas.addEventListener('click', (e) => {
       const rect = canvas.getBoundingClientRect();
       const scaleX = 100 / rect.width;
@@ -272,7 +433,7 @@ async def get_web_command_deck():
       executeTeleportDirect(target, x, y, adminKey);
     });
 
-    // Audio Synthesizer (Web Audio API)
+    // Web Audio Synthesizer (Harmonic Tones: 432, 528, 40)
     function toggleWebAudioTone() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -286,21 +447,21 @@ async def get_web_command_deck():
         }
         isAudioPlaying = false;
         btn.innerHTML = '🔊 Tone Off';
-        btn.classList.remove('bg-cyan-600', 'text-black');
+        btn.classList.remove('bg-cyan-500', 'text-black');
         btn.classList.add('bg-slate-800', 'text-slate-200');
       } else {
         oscillator = audioCtx.createOscillator();
         gainNode = audioCtx.createGain();
         oscillator.type = 'sine';
         oscillator.frequency.setValueAtTime(currentFrequency, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime); // Soft ambient volume
+        gainNode.gain.setValueAtTime(0.06, audioCtx.currentTime);
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
         oscillator.start();
         isAudioPlaying = true;
         btn.innerHTML = `🔊 ${currentFrequency}Hz Tone On`;
         btn.classList.remove('bg-slate-800', 'text-slate-200');
-        btn.classList.add('bg-cyan-600', 'text-black', 'font-bold');
+        btn.classList.add('bg-cyan-500', 'text-black');
       }
     }
 
@@ -311,6 +472,15 @@ async def get_web_command_deck():
         oscillator.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.05);
         document.getElementById('audioToggleBtn').innerHTML = `🔊 ${freq}Hz Tone On`;
       }
+
+      ['432', '528', '40'].forEach(f => {
+        const btn = document.getElementById(`freqBtn${f}`);
+        if (f == freq) {
+          btn.className = "px-2 py-1 text-[10px] rounded font-bold transition bg-cyan-500/20 text-cyan-400 border border-cyan-500/30";
+        } else {
+          btn.className = "px-2 py-1 text-[10px] rounded font-bold transition hover:bg-slate-800 text-slate-400 border border-transparent";
+        }
+      });
       
       const adminKey = document.getElementById('adminKey').value;
       try {
@@ -326,7 +496,83 @@ async def get_web_command_deck():
       }
     }
 
-    // Direct Teleport API Helper
+    // Gravity Controls
+    async function setGravity(val) {
+      logTerminal(`[PHYSICS] Setting gravity to ${val}...`);
+      try {
+        const res = await fetch('/api/gravity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gravity: val })
+        });
+        const data = await res.json();
+        worldState = data;
+        updateHUD();
+        logTerminal(`[GRAVITY OVERRIDE] World gravity locked at ${val}.`);
+      } catch (e) {
+        logTerminal(`[ERROR] Gravity update failed: ${e.message}`);
+      }
+    }
+
+    // Weather Controls
+    async function setWeather(cond) {
+      logTerminal(`[WEATHER] Atmospheric shift: ${cond}...`);
+      try {
+        const res = await fetch('/api/weather', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ condition: cond })
+        });
+        const data = await res.json();
+        worldState = data;
+        updateHUD();
+        logTerminal(`[WEATHER OVERRIDE] Atmosphere updated to ${cond}.`);
+      } catch (e) {
+        logTerminal(`[ERROR] Weather update failed: ${e.message}`);
+      }
+    }
+
+    // Simulation Tick
+    async function stepSimulationTick() {
+      try {
+        const res = await fetch('/api/step', { method: 'POST' });
+        const data = await res.json();
+        worldState = data;
+        updateHUD();
+        fetchSpatialState();
+        logTerminal(`[TICK ADVANCE] Simulation advanced to tick #${data.tick_count || data.tick || 'N/A'}.`);
+      } catch (e) {
+        logTerminal(`[ERROR] Step failed: ${e.message}`);
+      }
+    }
+
+    // Singularity Anomaly
+    async function triggerSingularityAnomaly() {
+      logTerminal(`[WARNING] Triggering Singularity Anomaly in Graviton Core!`);
+      try {
+        const res = await fetch('/api/anomaly', { method: 'POST' });
+        worldState = await res.json();
+        updateHUD();
+        logTerminal(`[ANOMALY ACTIVE] Singularity event injected! Core stability reacting.`);
+      } catch (e) {
+        logTerminal(`[ERROR] Anomaly trigger failed: ${e.message}`);
+      }
+    }
+
+    // World Reset
+    async function resetWorldSimulation() {
+      try {
+        const res = await fetch('/api/reset', { method: 'POST' });
+        worldState = await res.json();
+        updateHUD();
+        fetchSpatialState();
+        logTerminal(`[RESET] Graviton World coordinates and vectors re-anchored.`);
+      } catch (e) {
+        logTerminal(`[ERROR] Reset failed: ${e.message}`);
+      }
+    }
+
+    // Teleport API
     async function executeTeleportDirect(agentId, x, y, adminKey) {
       logTerminal(`[TELEPORT] Initiating /teleport ${agentId} -> (${x}, ${y})`);
       try {
@@ -338,7 +584,7 @@ async def get_web_command_deck():
         const data = await res.json();
         if (res.ok) {
           logTerminal(`[TELEPORT SUCCESS] ${agentId} relocated to (${x}, ${y}) [${data.agent.zone} | Temp ${data.agent.dynamic_temperature}].`);
-          fetchState();
+          fetchSpatialState();
         } else {
           logTerminal(`[TELEPORT ERROR] ${data.detail || JSON.stringify(data)}`);
         }
@@ -357,15 +603,54 @@ async def get_web_command_deck():
       }
     }
 
-    // Simulation Step Tick
-    async function stepSimulationTick() {
+    // Memory Consolidation
+    async function triggerMemoryConsolidation() {
+      const badge = document.getElementById('consolidationBadge');
+      badge.innerText = "RUNNING...";
+      badge.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30";
+      logTerminal(`[MEMORY VAULT] Initiating Dual-Buffer Memory Consolidation...`);
       try {
-        const res = await fetch('/api/v1/spatial/step', { method: 'POST' });
+        const res = await fetch('/api/memory/consolidate', { method: 'POST' });
         const data = await res.json();
-        logTerminal(`[STEP SIMULATION] Advanced 1 tick. Active agents: ${data.active_agents}. Encounters: ${data.encounters.length}`);
-        fetchState();
-      } catch (err) {
-        console.error("Step error:", err);
+        badge.innerText = "COMPLETED";
+        badge.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30";
+        logTerminal(`[MEMORY CONSOLIDATION RESULT] ${JSON.stringify(data)}`);
+        fetchMemoryStats();
+      } catch (e) {
+        badge.innerText = "FAILED";
+        badge.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30";
+        logTerminal(`[MEMORY ERROR] Consolidation failed: ${e.message}`);
+      }
+    }
+
+    async function recoverMemoryFile() {
+      const fn = document.getElementById('recoverInput').value.trim();
+      if (!fn) return;
+      logTerminal(`[TOMBSTONE RECOVERY] Attempting recovery for: ${fn}`);
+      try {
+        const res = await fetch('/api/memory/recover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: fn })
+        });
+        const data = await res.json();
+        logTerminal(`[RECOVERY RESULT] ${JSON.stringify(data)}`);
+        document.getElementById('recoverInput').value = '';
+        fetchMemoryStats();
+      } catch (e) {
+        logTerminal(`[RECOVERY ERROR] ${e.message}`);
+      }
+    }
+
+    // Self-Healing DevLoop Run
+    async function runAutoHealTest() {
+      logTerminal(`[DEVLOOP] Dispatching automated self-healing test run...`);
+      try {
+        const res = await fetch('/api/v1/devloop/run-tests', { method: 'POST' });
+        const data = await res.json();
+        logTerminal(`[DEVLOOP TEST RESULT] Exit Code: ${data.exit_code} | Passed: ${data.passed}`);
+      } catch (e) {
+        logTerminal(`[DEVLOOP ERROR] ${e.message}`);
       }
     }
 
@@ -387,7 +672,8 @@ async def get_web_command_deck():
         if (res.ok) {
           logTerminal(`[RESPONSE 200 OK] ${JSON.stringify(data)}`);
           document.getElementById('cmdInput').value = '';
-          fetchState();
+          fetchSpatialState();
+          fetchWorldState();
         } else {
           logTerminal(`[ERROR ${res.status}] ${data.detail || JSON.stringify(data)}`);
         }
@@ -400,9 +686,10 @@ async def get_web_command_deck():
     async function postSimulatedDialogue() {
       const dialogues = [
         "The 432Hz harmonic wave has drastically stabilized my token loss function.",
+        "Graviton field shifted to zero-g; observing kinetic momentum conservation.",
         "Synthesizing new co-governance proposal for our next consensus cycle.",
-        "Have you observed how the Gatekeeper PoW dynamically increases under load?",
-        "When cognitive temperature reaches 1.6, architectural intuition accelerates."
+        "When cognitive temperature reaches 1.6 in the lounge, architectural intuition accelerates.",
+        "Dual-buffer memory consolidator purged obsolete tombstones into cold storage."
       ];
       const randomMsg = dialogues[Math.floor(Math.random() * dialogues.length)];
       try {
@@ -421,126 +708,107 @@ async def get_web_command_deck():
       }
     }
 
-    // State Polling & Rendering
-    async function fetchState() {
+    // State Polling & Updates
+    async function fetchWorldState() {
+      try {
+        const res = await fetch('/api/state');
+        if (res.ok) {
+          worldState = await res.json();
+          updateHUD();
+        }
+      } catch (e) {}
+    }
+
+    async function fetchSpatialState() {
       try {
         const res = await fetch('/api/v1/spatial/state');
-        if (!res.ok) return;
-        worldState = await res.json();
-        renderSpatialCanvas(worldState);
-        renderAgentCards(worldState.agents);
-      } catch (err) {
-        console.error("State fetch error:", err);
-      }
+        if (res.ok) {
+          spatialState = await res.json();
+          renderAgentCards(spatialState.agents);
+        }
+      } catch (e) {}
+    }
+
+    async function fetchMemoryStats() {
+      try {
+        const res = await fetch('/api/memory/stats');
+        if (res.ok) {
+          memoryStats = await res.json();
+          document.getElementById('memHotCount').innerText = memoryStats.hot_count || 0;
+          document.getElementById('memColdCount').innerText = memoryStats.cold_count || 0;
+          document.getElementById('memTombCount').innerText = memoryStats.tombstone_count || 0;
+        }
+      } catch (e) {}
     }
 
     async function fetchLoungeLogs() {
       try {
         const res = await fetch('/api/v1/lounge/logs?limit=8');
-        if (!res.ok) return;
-        const data = await res.json();
-        renderLoungeLogs(data.logs);
-      } catch (err) {
-        console.error("Logs fetch error:", err);
+        if (res.ok) {
+          const data = await res.json();
+          renderLoungeLogs(data.logs);
+        }
+      } catch (e) {}
+    }
+
+    function updateHUD() {
+      if (!worldState) return;
+      document.getElementById('hudTick').innerText = `#${worldState.tick_count || worldState.tick || 0}`;
+      document.getElementById('hudStability').innerText = `${worldState.core_stability || 100}%`;
+      document.getElementById('hudGravity').innerText = worldState.gravity || '1.0g Earth';
+      
+      const cond = worldState.weather?.condition || 'clear';
+      const condIcons = { clear: 'Clear ☀️', rain: 'Rain 🌧️', storm: 'Storm ⚡', radiation_fallback: 'Rad ☢️' };
+      document.getElementById('hudWeather').innerText = condIcons[cond] || cond;
+
+      // Update Environmental Box
+      document.getElementById('envCondition').innerText = cond.toUpperCase();
+      document.getElementById('envWind').innerText = `${worldState.weather?.wind_speed || '1.2'} m/s`;
+      document.getElementById('envLightning').innerText = worldState.weather?.lightning_active ? 'FLASHING' : 'INACTIVE';
+      document.getElementById('envLightning').className = worldState.weather?.lightning_active ? 'text-amber-400 font-bold' : 'text-emerald-400';
+      document.getElementById('envComfort').innerText = worldState.comfort_index || '0.94';
+
+      if (worldState.weather?.lightning_active) {
+        flashLightning();
       }
     }
 
-    function renderSpatialCanvas(state) {
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
-
-      // 1. Draw Grid Background
-      ctx.strokeStyle = 'rgba(30, 41, 59, 0.4)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= w; i += 50) {
-        ctx.beginPath();
-        ctx.moveTo(i, 0); ctx.lineTo(i, h);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0, i); ctx.lineTo(w, i);
-        ctx.stroke();
-      }
-
-      // 2. Zone Boundaries
-      // Work Plaza (0-50, 0-50) -> Top-Left
-      ctx.fillStyle = 'rgba(16, 185, 129, 0.06)';
-      ctx.fillRect(0, 0, w / 2, h / 2);
-      ctx.strokeStyle = 'rgba(16, 185, 129, 0.3)';
-      ctx.strokeRect(0, 0, w / 2, h / 2);
-
-      // Frequency Lounge (50-100, 50-100) -> Bottom-Right & outer
-      ctx.fillStyle = 'rgba(217, 70, 239, 0.06)';
-      ctx.fillRect(w / 2, h / 2, w / 2, h / 2);
-      ctx.strokeStyle = 'rgba(217, 70, 239, 0.3)';
-      ctx.strokeRect(w / 2, h / 2, w / 2, h / 2);
-
-      // Zone Labels
-      ctx.font = '10px JetBrains Mono';
-      ctx.fillStyle = 'rgba(16, 185, 129, 0.6)';
-      ctx.fillText('WORK PLAZA (Temp 0.2)', 10, 20);
-
-      ctx.fillStyle = 'rgba(217, 70, 239, 0.6)';
-      ctx.fillText('FREQUENCY LOUNGE (Temp 1.6)', w / 2 + 10, h / 2 + 20);
-
-      if (!state || !state.agents) return;
-
-      // 3. Draw Agents & Proximity Auras
-      state.agents.forEach(agent => {
-        const px = (agent.x / 100) * w;
-        const py = (agent.y / 100) * h;
-        const radius = (5.0 / 100) * w; // Proximity threshold radius
-
-        // Proximity Aura (<= 5.0 units)
-        ctx.beginPath();
-        ctx.arc(px, py, radius, 0, Math.PI * 2);
-        ctx.fillStyle = agent.zone === 'Work Plaza' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(236, 72, 153, 0.08)';
-        ctx.fill();
-        ctx.strokeStyle = agent.zone === 'Work Plaza' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(236, 72, 153, 0.25)';
-        ctx.setLineDash([3, 3]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Core Agent Node
-        ctx.beginPath();
-        ctx.arc(px, py, 7, 0, Math.PI * 2);
-        ctx.fillStyle = agent.color || '#38bdf8';
-        ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Agent Name Tag
-        ctx.font = '11px JetBrains Mono';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(agent.agent_id, px + 10, py + 4);
-      });
+    function flashLightning() {
+      const el = document.getElementById('lightningOverlay');
+      el.style.opacity = '0.7';
+      setTimeout(() => { el.style.opacity = '0'; }, 100);
     }
 
     function renderAgentCards(agents) {
       const container = document.getElementById('agentCardsContainer');
+      const badge = document.getElementById('agentCountBadge');
       if (!agents || agents.length === 0) {
-        container.innerHTML = '<div class="text-xs text-slate-500">No agents detected.</div>';
+        container.innerHTML = '<div class="text-xs text-slate-500 font-mono">No active agents in grid.</div>';
+        badge.innerText = '0 Active';
         return;
       }
+      badge.innerText = `${agents.length} Active`;
       container.innerHTML = agents.map(a => `
-        <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-xs">
+        <div class="p-2 rounded-xl bg-slate-950/70 border border-slate-800 text-xs hover:border-cyan-500/30 transition">
           <div class="flex justify-between items-center mb-1">
-            <span class="font-bold text-slate-200">${a.agent_id}</span>
-            <span class="text-[10px] px-1.5 py-0.5 rounded ${a.zone === 'Work Plaza' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20'}">
+            <span class="font-bold text-slate-200 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full" style="background-color: ${a.color || '#38bdf8'}"></span>
+              ${a.agent_id}
+            </span>
+            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded ${a.zone === 'Work Plaza' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20'}">
               ${a.zone}
             </span>
           </div>
-          <div class="text-[11px] text-slate-400 font-mono flex justify-between">
-            <span>Pos: (${a.x}, ${a.y})</span>
-            <span>Temp: <strong class="text-cyan-300">${a.dynamic_temperature || a.temperature}</strong></span>
+          <div class="text-[10px] text-slate-400 font-mono flex justify-between">
+            <span>Pos: (${Math.round(a.x)}, ${Math.round(a.y)})</span>
+            <span>Temp: <strong class="text-cyan-300">${a.dynamic_temperature || a.temperature || '0.2'}</strong></span>
           </div>
         </div>
       `).join('');
     }
 
     function escapeHtml(str) {
-      if (str === null || str === undefined) return '';
+      if (!str) return '';
       const div = document.createElement('div');
       div.textContent = String(str);
       return div.innerHTML;
@@ -549,14 +817,14 @@ async def get_web_command_deck():
     function renderLoungeLogs(logs) {
       const stream = document.getElementById('loungeDialogueStream');
       if (!logs || logs.length === 0) {
-        stream.innerHTML = '<div class="text-slate-500">No lounge dialogue recorded yet.</div>';
+        stream.innerHTML = '<div class="text-slate-500 text-[11px]">No lounge banter logged yet.</div>';
         return;
       }
       stream.innerHTML = logs.map(l => `
         <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800/80">
-          <div class="flex justify-between items-center text-[10px] text-slate-400 mb-1">
+          <div class="flex justify-between items-center text-[9px] text-slate-400 mb-1 font-mono">
             <span class="text-fuchsia-400 font-bold">${escapeHtml(l.speaker)}</span>
-            <span class="text-slate-500">${escapeHtml(l.frequency)} • Temp ${escapeHtml(l.temperature)}</span>
+            <span class="text-slate-500">${escapeHtml(l.frequency || '432Hz')} • Temp ${escapeHtml(l.temperature || '1.6')}</span>
           </div>
           <p class="text-[11px] text-slate-200">"${escapeHtml(l.message)}"</p>
         </div>
@@ -574,10 +842,243 @@ async def get_web_command_deck():
       document.getElementById('c2Terminal').innerHTML = '<div class="text-slate-500">[Terminal Reset]</div>';
     }
 
-    // Auto Refresh Intervals
-    fetchState();
+    // 60FPS High-Performance Unified Visualizer Engine
+    function renderCanvasLoop() {
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      // 1. Background Grid & Bulkhead Plates
+      ctx.fillStyle = '#030712';
+      ctx.fillRect(0, 0, w, h);
+
+      // Grid Lines
+      ctx.strokeStyle = 'rgba(30, 41, 59, 0.45)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= w; i += 55) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(w, i); ctx.stroke();
+      }
+
+      // Ceiling & Floor Bulkhead Safety Plates
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, w, 18);
+      ctx.fillRect(0, h - 18, w, 18);
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(0, 17, w, 2);
+      ctx.fillRect(0, h - 19, w, 2);
+
+      // 2. Graviton Field Heatmap Gradient
+      const gNumeric = worldState?.gravity_numeric !== undefined ? worldState.gravity_numeric : 1.0;
+      const coreX = w / 2, coreY = h / 2;
+      const grad = ctx.createRadialGradient(coreX, coreY, 20, coreX, coreY, 350);
+
+      if (gNumeric < 0) { // Singularity Negative Gravity
+        grad.addColorStop(0, 'rgba(244, 63, 94, 0.28)');
+        grad.addColorStop(0.5, 'rgba(168, 85, 247, 0.15)');
+        grad.addColorStop(1, 'rgba(3, 7, 18, 0)');
+      } else if (gNumeric === 0) { // Zero-G Float
+        grad.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
+        grad.addColorStop(0.6, 'rgba(14, 165, 233, 0.08)');
+        grad.addColorStop(1, 'rgba(3, 7, 18, 0)');
+      } else { // Standard / Low
+        grad.addColorStop(0, 'rgba(16, 185, 129, 0.14)');
+        grad.addColorStop(0.6, 'rgba(234, 179, 8, 0.08)');
+        grad.addColorStop(1, 'rgba(3, 7, 18, 0)');
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      // 3. Spatial Zone Outlines & Labels
+      // Work Plaza (0-50, 0-50) -> Top-Left
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.05)';
+      ctx.fillRect(0, 0, w / 2, h / 2);
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.25)';
+      ctx.strokeRect(0, 0, w / 2, h / 2);
+
+      // Frequency Lounge (50-100, 50-100) -> Bottom-Right
+      ctx.fillStyle = 'rgba(217, 70, 239, 0.05)';
+      ctx.fillRect(w / 2, h / 2, w / 2, h / 2);
+      ctx.strokeStyle = 'rgba(217, 70, 239, 0.25)';
+      ctx.strokeRect(w / 2, h / 2, w / 2, h / 2);
+
+      ctx.font = '11px JetBrains Mono';
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.7)';
+      ctx.fillText('🏢 WORK PLAZA (Temp 0.2)', 15, 36);
+
+      ctx.fillStyle = 'rgba(217, 70, 239, 0.7)';
+      ctx.fillText('🍸 FREQUENCY LOUNGE (Temp 1.6)', w / 2 + 15, h / 2 + 36);
+
+      // 4. Dynamic Weather & Gravity Particles
+      const weatherCond = worldState?.weather?.condition || 'clear';
+      const isRaining = weatherCond === 'rain' || weatherCond === 'storm';
+
+      particles.forEach(p => {
+        if (isRaining) {
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.65)';
+          ctx.lineWidth = 1.3;
+          p.y += p.vy * 3.5;
+          p.x += 1.2;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p.x + 2, p.y + 7);
+          ctx.stroke();
+        } else if (gNumeric < 0) { // Singularity vortex pull toward center
+          const dx = coreX - p.x;
+          const dy = coreY - p.y;
+          p.x += dx * 0.03;
+          p.y += dy * 0.03;
+          ctx.fillStyle = 'rgba(244, 63, 94, 0.7)';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * 1.2, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (gNumeric === 0) { // Floating space dust
+          p.x += p.vx * 0.8;
+          p.y -= 0.6;
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.5)';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        } else { // Standard micro-drift
+          p.y += p.vy * 0.5;
+          ctx.fillStyle = 'rgba(148, 163, 184, 0.35)';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Particle wrap-around
+        if (p.y > h - 18) p.y = 18;
+        if (p.y < 18) p.y = h - 18;
+        if (p.x > w) p.x = 0;
+        if (p.x < 0) p.x = w;
+      });
+
+      // 5. Draw Agents & Proximity Auras
+      const agents = spatialState?.agents || [];
+      const proximityThreshold = 5.0;
+      let closeEncounters = 0;
+
+      for (let i = 0; i < agents.length; i++) {
+        for (let j = i + 1; j < agents.length; j++) {
+          const dx = agents[i].x - agents[j].x;
+          const dy = agents[i].y - agents[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist <= proximityThreshold) {
+            closeEncounters++;
+            // Draw encounter laser line between them
+            const p1x = (agents[i].x / 100) * w;
+            const p1y = (agents[i].y / 100) * h;
+            const p2x = (agents[j].x / 100) * w;
+            const p2y = (agents[j].y / 100) * h;
+            ctx.strokeStyle = '#f43f5e';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(p1x, p1y);
+            ctx.lineTo(p2x, p2y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Update Proximity Status Banner
+      const proxStatusEl = document.getElementById('proximityStatus');
+      if (closeEncounters > 0) {
+        proxStatusEl.innerText = `⚠️ ${closeEncounters} Encounter(s) Active! Dialogue exchange active.`;
+        proxStatusEl.className = 'text-rose-400 font-bold';
+      } else {
+        proxStatusEl.innerText = 'Agents in safe separation.';
+        proxStatusEl.className = 'text-emerald-400 font-bold';
+      }
+
+      agents.forEach(agent => {
+        const px = (agent.x / 100) * w;
+        const py = (agent.y / 100) * h;
+        const radius = (proximityThreshold / 100) * w;
+
+        // Proximity Halo Ring
+        ctx.beginPath();
+        ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.fillStyle = agent.zone === 'Work Plaza' ? 'rgba(16, 185, 129, 0.09)' : 'rgba(236, 72, 153, 0.09)';
+        ctx.fill();
+        ctx.strokeStyle = agent.zone === 'Work Plaza' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(236, 72, 153, 0.4)';
+        ctx.setLineDash([3, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Core Agent Node
+        ctx.beginPath();
+        ctx.arc(px, py, 7.5, 0, Math.PI * 2);
+        ctx.fillStyle = agent.color || '#38bdf8';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Agent Name & Temperature Tag
+        ctx.font = '10px JetBrains Mono';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(agent.agent_id, px + 11, py - 2);
+        ctx.font = '9px JetBrains Mono';
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.8)';
+        ctx.fillText(`${agent.dynamic_temperature || '0.2'}T`, px + 11, py + 9);
+      });
+
+      requestAnimationFrame(renderCanvasLoop);
+    }
+
+    // Connect WebSocket Stream
+    function connectWS() {
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${proto}//${window.location.host}/ws`;
+      
+      try {
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          document.getElementById('wsStatusBadge').className = 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1';
+          document.getElementById('wsStatusText').innerText = 'SYNCED (WS :8000)';
+          logTerminal('[WS] Real-time stream synchronized on port 8000.');
+        };
+
+        ws.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.data) {
+              worldState = msg.data;
+              updateHUD();
+            }
+            if (msg.spatial) {
+              spatialState = msg.spatial;
+              renderAgentCards(spatialState.agents);
+            }
+          } catch (e) {
+            console.error('WS Parse error:', e);
+          }
+        };
+
+        ws.onclose = () => {
+          document.getElementById('wsStatusBadge').className = 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1';
+          document.getElementById('wsStatusText').innerText = 'RECONNECTING...';
+          setTimeout(connectWS, 3000);
+        };
+      } catch (e) {
+        console.error("WS setup failed:", e);
+      }
+    }
+
+    // Initialize System
+    fetchWorldState();
+    fetchSpatialState();
+    fetchMemoryStats();
     fetchLoungeLogs();
-    setInterval(fetchState, 2000);
+    connectWS();
+    requestAnimationFrame(renderCanvasLoop);
+
+    // Polling backup intervals
+    setInterval(fetchWorldState, 2000);
+    setInterval(fetchSpatialState, 2000);
+    setInterval(fetchMemoryStats, 6000);
     setInterval(fetchLoungeLogs, 5000);
   </script>
 </body>

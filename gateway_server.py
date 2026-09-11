@@ -23,12 +23,12 @@ logger = logging.getLogger("GatewayServer")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.gatekeeper_router import router as gatekeeper_router
-from api.console_router import router as console_router
+from api.console_router import router as console_router, console_service
 from api.spatial_router import router as spatial_router, spatial_engine, dj_frequency
 from api.sanctum_router import router as sanctum_router
 from api.memory_router import router as memory_router
@@ -43,6 +43,8 @@ from sim_engine import GravitonWorld
 vault_mgr = VaultManager()
 vault_mgr.ensure_vault_hierarchy()
 world = GravitonWorld()
+console_service.set_world_engine(world)
+console_service.set_dj_frequency(dj_frequency)
 
 # WebSocket Manager
 class ConnectionManager:
@@ -184,24 +186,120 @@ async def get_status():
         }
     }
 
+# ==============================================================================
+# Open-World Simulation & Memory Consolidation Endpoints
+# ==============================================================================
+@app.get("/api/state", summary="Get Full Graviton World State")
+def get_world_state():
+    return world.get_full_state()
+
+@app.post("/api/step", summary="Advance Simulation Tick Manually")
+async def manual_step():
+    new_state = world.step_tick()
+    spatial_state = spatial_engine.step_simulation(delta_time=1.0)
+    payload = {
+        "type": "tick_update",
+        "data": new_state,
+        "spatial": spatial_state,
+        "frequency": dj_frequency.get_current_state()
+    }
+    await manager.broadcast(payload)
+    return new_state
+
+@app.post("/api/gravity", summary="Override World Gravity")
+async def set_gravity(payload: Dict[str, Any] = Body(...)):
+    g_str = payload.get("gravity") or payload.get("value", "1.0g")
+    world.set_gravity(g_str)
+    state = world.get_full_state()
+    await manager.broadcast({"type": "gravity_update", "data": state})
+    return state
+
+@app.post("/api/weather", summary="Override World Weather")
+async def set_weather(payload: Dict[str, Any] = Body(...)):
+    cond = payload.get("condition") or payload.get("weather", "clear")
+    world.set_weather(cond)
+    state = world.get_full_state()
+    await manager.broadcast({"type": "weather_update", "data": state})
+    return state
+
+@app.post("/api/anomaly", summary="Trigger Singularity Anomaly")
+async def trigger_anomaly():
+    world.trigger_anomaly()
+    state = world.get_full_state()
+    await manager.broadcast({"type": "anomaly_triggered", "data": state})
+    return state
+
+@app.post("/api/reset", summary="Reset Simulation Coordinates")
+async def reset_world():
+    world.reset()
+    state = world.get_full_state()
+    await manager.broadcast({"type": "reset", "data": state})
+    return state
+
+@app.get("/api/memory/stats", summary="Get Cognitive Memory Buffer Stats")
+def memory_stats():
+    try:
+        from agent_memory_consolidator import get_memory_stats
+        return get_memory_stats()
+    except Exception as e:
+        return {"error": str(e), "hot_count": 0, "cold_count": 0, "tombstone_count": 0}
+
+@app.post("/api/memory/consolidate", summary="Trigger Dual-Buffer Memory Consolidation")
+def memory_consolidate():
+    try:
+        from agent_memory_consolidator import MemoryConsolidator
+        consolidator = MemoryConsolidator()
+        return consolidator.run_consolidation_cycle()
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+@app.post("/api/memory/recover", summary="Recover Memory from Tombstone Archive")
+def memory_recover(payload: Dict[str, Any] = Body(...)):
+    try:
+        from agent_memory_consolidator import recover_tombstoned_file
+        filename = payload.get("filename", "")
+        success = recover_tombstoned_file(filename)
+        return {"recovered": success, "filename": filename}
+    except Exception as e:
+        return {"recovered": False, "error": str(e)}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
-        # Send initial world state
-        await websocket.send_json({"type": "init", "data": world.get_full_state()})
+        # Send initial world state and spatial matrix
+        await websocket.send_json({
+            "type": "init",
+            "data": world.get_full_state(),
+            "spatial": spatial_engine.get_state(),
+            "frequency": dj_frequency.get_current_state()
+        })
         while True:
             data = await websocket.receive_json()
-            action = data.get("action")
+            action = data.get("action") or data.get("type")
             if action == "step":
                 new_state = world.step_tick()
-                await manager.broadcast({"type": "tick_update", "data": new_state})
+                spatial_state = spatial_engine.step_simulation(delta_time=1.0)
+                await manager.broadcast({
+                    "type": "tick_update",
+                    "data": new_state,
+                    "spatial": spatial_state,
+                    "frequency": dj_frequency.get_current_state()
+                })
             elif action in ("gravity", "set_gravity"):
-                world.set_gravity(data.get("value", "1.0g"))
+                g_val = data.get("gravity") or data.get("value", "1.0g")
+                world.set_gravity(g_val)
                 await manager.broadcast({"type": "gravity_update", "data": world.get_full_state()})
             elif action in ("weather", "set_weather"):
-                world.set_weather(data.get("weather", "clear"))
+                w_val = data.get("weather") or data.get("condition", "clear")
+                world.set_weather(w_val)
                 await manager.broadcast({"type": "weather_update", "data": world.get_full_state()})
+            elif action == "anomaly":
+                world.trigger_anomaly()
+                await manager.broadcast({"type": "anomaly_triggered", "data": world.get_full_state()})
+            elif action == "reset":
+                world.reset()
+                await manager.broadcast({"type": "reset", "data": world.get_full_state()})
             elif action == "ping":
                 await websocket.send_json({"type": "pong", "tick": world.tick})
     except WebSocketDisconnect:

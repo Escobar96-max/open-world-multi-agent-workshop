@@ -257,8 +257,12 @@ tags:
 
     def set_gravity(self, g_str: str):
         self.local_gravity = g_str
-        mapping = {"0.0g": 0.0, "1.0g": 1.0, "-1.2g": -1.2, "3.2g": 3.2}
-        self.gravity_numeric = mapping.get(g_str, 1.0)
+        mapping = {"0.0g": 0.0, "0.4g": 0.4, "1.0g": 1.0, "-1.2g": -1.2, "3.2g": 3.2}
+        try:
+            val = float(g_str.replace("g", ""))
+            self.gravity_numeric = mapping.get(g_str, val)
+        except ValueError:
+            self.gravity_numeric = mapping.get(g_str, 1.0)
         self.recent_events.append({
             "tick": self.tick,
             "type": "physics",
@@ -494,8 +498,10 @@ tags:
     def get_full_state(self) -> Dict[str, Any]:
         return {
             "tick": self.tick,
+            "tick_count": self.tick,
             "location": self.location,
             "local_gravity": self.local_gravity,
+            "gravity": self.local_gravity,
             "gravity_numeric": self.gravity_numeric,
             "core_stability": round(self.core_stability, 1),
             "anomaly_active": self.anomaly_active,

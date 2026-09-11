@@ -13,10 +13,25 @@ class ConsoleSecurityError(Exception):
         self.status_code = status_code
 
 class ConsoleC2Service:
-    def __init__(self, vault_manager: Optional[VaultManager] = None, admin_key: Optional[str] = None, spatial_engine: Optional[Any] = None):
+    def __init__(
+        self,
+        vault_manager: Optional[VaultManager] = None,
+        admin_key: Optional[str] = None,
+        spatial_engine: Optional[Any] = None,
+        world_engine: Optional[Any] = None,
+        dj_frequency: Optional[Any] = None
+    ):
         self.vault = vault_manager or VaultManager()
         self.admin_key = admin_key or os.getenv("ADMIN_SECRET_KEY", "op_secret_master_key_9921")
         self.spatial = spatial_engine
+        self.world = world_engine
+        self.dj_frequency = dj_frequency
+
+    def set_world_engine(self, world_engine: Any) -> None:
+        self.world = world_engine
+
+    def set_dj_frequency(self, dj_frequency: Any) -> None:
+        self.dj_frequency = dj_frequency
 
     def verify_admin_key(self, provided_key: Optional[str]) -> None:
         if not provided_key or not secrets.compare_digest(provided_key, self.admin_key):
@@ -151,11 +166,66 @@ class ConsoleC2Service:
                 "message": f"Training curriculum '{curriculum}' assigned to {agent_id}."
             }
 
+        elif keyword == "/gravity":
+            # Syntax: /gravity <value> (e.g. 0.0g, 0.4g, 1.0g, -1.2g)
+            if len(parts) < 2:
+                return {"status": "ERROR", "command": slash_cmd, "error": "Syntax: /gravity <0.0g|0.4g|1.0g|-1.2g>"}
+            val = parts[1]
+            if self.world and hasattr(self.world, "set_gravity"):
+                self.world.set_gravity(val)
+                return {"status": "SUCCESS", "command": "/gravity", "gravity": val, "message": f"World gravity shifted to {val}."}
+            return {"status": "SUCCESS", "command": "/gravity", "gravity": val, "message": f"Gravity directive recorded: {val}"}
+
+        elif keyword == "/weather":
+            # Syntax: /weather <condition> (e.g. clear, rain, storm, rad)
+            if len(parts) < 2:
+                return {"status": "ERROR", "command": slash_cmd, "error": "Syntax: /weather <clear|rain|storm|rad>"}
+            cond = parts[1].lower()
+            if self.world and hasattr(self.world, "set_weather"):
+                self.world.set_weather(cond)
+                return {"status": "SUCCESS", "command": "/weather", "weather": cond, "message": f"Atmospheric condition shifted to {cond}."}
+            return {"status": "SUCCESS", "command": "/weather", "weather": cond, "message": f"Weather directive recorded: {cond}"}
+
+        elif keyword == "/step":
+            res = {}
+            if self.spatial and hasattr(self.spatial, "step_simulation"):
+                res["spatial"] = self.spatial.step_simulation(delta_time=1.0)
+            if self.world and hasattr(self.world, "step_tick"):
+                res["world"] = self.world.step_tick()
+            return {"status": "SUCCESS", "command": "/step", "result": res, "message": "Advanced world & spatial simulation 1 tick."}
+
+        elif keyword == "/anomaly":
+            if self.world and hasattr(self.world, "trigger_anomaly"):
+                self.world.trigger_anomaly()
+                return {"status": "SUCCESS", "command": "/anomaly", "message": "Singularity anomaly triggered in physics core."}
+            return {"status": "SUCCESS", "command": "/anomaly", "message": "Anomaly directive logged."}
+
+        elif keyword == "/freq":
+            if len(parts) < 2:
+                return {"status": "ERROR", "command": slash_cmd, "error": "Syntax: /freq <432|528|40>"}
+            try:
+                freq = int(parts[1])
+            except ValueError:
+                return {"status": "ERROR", "error": "Frequency must be an integer (e.g. 432, 528, 40)."}
+            if self.dj_frequency and hasattr(self.dj_frequency, "set_frequency"):
+                state = self.dj_frequency.set_frequency(freq, reason="C2 /freq command")
+                return {"status": "SUCCESS", "command": "/freq", "frequency_state": state, "message": f"DJ frequency shifted to {freq}Hz."}
+            return {"status": "SUCCESS", "command": "/freq", "frequency": freq, "message": f"Frequency directive set to {freq}Hz."}
+
+        elif keyword == "/consolidate":
+            try:
+                from agent_memory_consolidator import MemoryConsolidator
+                cons = MemoryConsolidator()
+                res = cons.run_consolidation_cycle()
+                return {"status": "SUCCESS", "command": "/consolidate", "consolidation": res}
+            except Exception as e:
+                return {"status": "ERROR", "command": "/consolidate", "error": str(e)}
+
         else:
             return {
                 "status": "ERROR",
                 "command": slash_cmd,
-                "error": f"Unknown slash command: '{keyword}'. Available: /teleport, /train"
+                "error": f"Unknown slash command: '{keyword}'. Available: /teleport, /train, /gravity, /weather, /step, /anomaly, /freq, /consolidate"
             }
 
     def _inject_directive_memory(self, agent_id: str, directive: str, operator_id: str) -> Dict[str, Any]:

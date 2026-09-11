@@ -7,8 +7,21 @@ import {
   CloudLightning, Sun
 } from 'lucide-react';
 
-const HTTP_API_BASE = 'http://localhost:8080';
-const WS_URL = 'ws://localhost:8080/ws';
+const getApiBase = () => {
+  if (typeof window === 'undefined') return 'http://localhost:8000';
+  if (window.location.port === '5173') return 'http://localhost:8000';
+  return window.location.origin;
+};
+
+const getWsUrl = () => {
+  if (typeof window === 'undefined') return 'ws://localhost:8000/ws';
+  if (window.location.port === '5173') return 'ws://localhost:8000/ws';
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${proto}//${window.location.host}/ws`;
+};
+
+const HTTP_API_BASE = getApiBase();
+const WS_URL = getWsUrl();
 
 export default function OpenWorldVisualizer({ onOpenFullVault }) {
   // Python Physics World State
