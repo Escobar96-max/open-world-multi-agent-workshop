@@ -35,6 +35,7 @@ from api.memory_router import router as memory_router
 from api.bounty_router import router as bounty_router
 from api.governance_router import router as governance_router
 from api.telegram_router import router as telegram_router
+from api.devloop_router import router as devloop_router
 from services.vault_manager import VaultManager
 from sim_engine import GravitonWorld
 
@@ -108,8 +109,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Autonomous AI Open-World Ecosystem Gateway",
-    description="Dual Gatekeeper, Operator C2 Bridge, Spatial Physics, DJ Frequency Lounge, Synthesis Sanctum, Neon Ledger, Bounty Marketplace, and Telegram C2",
-    version="1.3.0",
+    description="Dual Gatekeeper, Operator C2 Bridge, Spatial Physics, DJ Frequency Lounge, Synthesis Sanctum, Neon Ledger, Bounty Marketplace, Telegram C2, and Architect_Prime Self-Healing Dev Loop",
+    version="1.4.0",
     lifespan=lifespan
 )
 
@@ -122,7 +123,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API Routers (Phases 1, 2, 3)
+# Include API Routers (Phases 1, 2, 3, 4)
 app.include_router(gatekeeper_router)
 app.include_router(console_router)
 app.include_router(spatial_router)
@@ -131,13 +132,14 @@ app.include_router(memory_router)
 app.include_router(bounty_router)
 app.include_router(governance_router)
 app.include_router(telegram_router)
+app.include_router(devloop_router)
 
 @app.get("/api/v1/status")
 @app.get("/api/status")
 async def get_status():
     return {
         "ecosystem": "Self-Bootstrapping Autonomous AI Open-World",
-        "phase": "Phase 3: The Synthesis Sanctum, Economy & Telegram Bot Bridge",
+        "phase": "Phase 4: Autonomous Dev Loop, Cloudflare Zero-Trust Tunnel & Production Launch",
         "status": "ONLINE",
         "world_tick": world.tick,
         "active_clients": len(manager.active_connections),
@@ -174,6 +176,10 @@ async def get_status():
             "governance_vote": "POST /api/v1/governance/vote",
             "telegram_webhook": "POST /api/v1/telegram/webhook",
             "telegram_status": "GET /api/v1/telegram/status",
+            "devloop_health": "GET /api/v1/devloop/health",
+            "devloop_run_tests": "POST /api/v1/devloop/run-tests",
+            "devloop_auto_heal": "POST /api/v1/devloop/auto-heal",
+            "devloop_apply_patch": "POST /api/v1/devloop/apply-patch",
             "websocket_stream": "ws://localhost:8000/ws"
         }
     }

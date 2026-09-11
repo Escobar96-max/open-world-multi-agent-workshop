@@ -1,0 +1,32 @@
+# Git & Environment
+.git
+.gitignore
+.github
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.token
+
+# Python Virtual Environments & Caches
+__pycache__
+*.py[cod]
+*$py.class
+.venv
+venv
+env
+.pytest_cache
+*.log
+
+# Frontend & Dependencies
+node_modules
+.vite
+dist
+
+# Temporary & Local Scratch
+dev_project_v2
+ObsidianAgentVault
+.obsidian
+.DS_Store
+Thumbs.db

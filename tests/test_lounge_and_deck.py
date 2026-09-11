@@ -103,5 +103,5 @@ def test_gateway_status_reflects_phase_2(client):
     res_status = client.get("/api/v1/status")
     assert res_status.status_code == 200
     status = res_status.json()
-    assert "Phase 3" in status["phase"]
+    assert "Phase 4" in status["phase"]
     assert "dj_frequency" in status

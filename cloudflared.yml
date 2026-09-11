@@ -1,0 +1,28 @@
+# ==============================================================================
+# Cloudflare Zero-Trust Tunnel Configuration (cloudflared)
+# Outbound-Only QUIC/HTTP2 Tunnel — Zero Open Inbound Ports
+# ==============================================================================
+
+# Tunnel identifier or name (configured via `cloudflared tunnel create`)
+tunnel: agentworld-tunnel
+
+# Path to the credentials file generated during tunnel creation
+credentials-file: /etc/cloudflared/credentials.json
+
+# Ingress Rules Routing Table
+ingress:
+  # 1. Route Central Gateway API & WebSocket Traffic
+  - hostname: gateway.agentworld.internal
+    service: http://gateway:8000
+    originRequest:
+      noTLSVerify: false
+      connectTimeout: 15s
+      keepAliveTimeout: 90s
+      http2Origin: true
+
+  # 2. Localhost fallback for bare-metal testing
+  - hostname: localhost
+    service: http://127.0.0.1:8000
+
+  # 3. Mandatory Catch-All 404 rule
+  - service: http_status:404

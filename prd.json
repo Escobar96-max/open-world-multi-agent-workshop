@@ -1,7 +1,7 @@
 {
   "project": "AgentWorld",
-  "branchName": "ralph/phase-3-synthesis-sanctum-economy",
-  "description": "The Synthesis Sanctum, Economy & Telegram Bot Bridge",
+  "branchName": "ralph/phase-4-autonomous-devloop-cloudflare-tunnel",
+  "description": "Autonomous Dev Loop, Cloudflare Zero-Trust Tunnel & Production Launch",
   "userStories": [
     {
       "id": "US-001",
@@ -184,6 +184,93 @@
       "priority": 12,
       "passes": true,
       "notes": "Implemented services/bot_bridge.py, services/telegram_notifier.py, api/telegram_router.py, and gateway mounting. 46/46 tests passing."
+    },
+    {
+      "id": "US-013",
+      "title": "Autonomous Dev Loop Test Execution Engine",
+      "description": "Subprocess-based pytest test runner with structured metric parsing and execution timers.",
+      "acceptanceCriteria": [
+        "services/dev_loop.py executes pytest asynchronously/synchronously with custom test target",
+        "Parses total collected, passed count, failed count, duration, and pass rate percent",
+        "POST /api/v1/devloop/run-tests returns structured execution summary",
+        "Unit tests pass"
+      ],
+      "priority": 13,
+      "passes": true,
+      "notes": "Implemented DevLoopEngine.run_tests and api/devloop_router.py. Verified in tests/test_phase4_devloop.py."
+    },
+    {
+      "id": "US-014",
+      "title": "Architect_Prime Autonomous Diagnosis & AST Patching",
+      "description": "Failure diagnostic parser, targeted patch application with automatic rollback on regression, and security boundary enforcement.",
+      "acceptanceCriteria": [
+        "Safety boundary strictly blocks patching of gatekeeper.py, .env, and critical keys",
+        "Atomic patch application with .bak backup file",
+        "Automated regression testing reverts patch if test failures occur",
+        "Records verified patches into /vault/World/admin_logs.md",
+        "Unit tests pass"
+      ],
+      "priority": 14,
+      "passes": true,
+      "notes": "Implemented apply_patch with safety guardrails and regression rollback in services/dev_loop.py. Verified."
+    },
+    {
+      "id": "US-015",
+      "title": "Multi-Stage Production Dockerfile",
+      "description": "Multi-stage hardened Dockerfile with minimal runtime image, non-root user, and status healthcheck.",
+      "acceptanceCriteria": [
+        "Multi-stage build separation (builder vs runner)",
+        "Configures non-root user appuser (UID 10001)",
+        "Includes Docker HEALTHCHECK against /api/v1/status",
+        "Exposes port 8000 with clean uvicorn launch command",
+        "Unit tests pass"
+      ],
+      "priority": 15,
+      "passes": true,
+      "notes": "Created Dockerfile and verified structure in tests/test_container_and_tunnel.py."
+    },
+    {
+      "id": "US-016",
+      "title": "Multi-Service Docker Compose with Cloudflared",
+      "description": "Docker Compose orchestration linking FastAPI gateway with Cloudflare Tunnel daemon and persistent vault volume.",
+      "acceptanceCriteria": [
+        "docker-compose.yml defines gateway and cloudflared services",
+        "Mounts ./vault:/app/vault volume for persistent Obsidian syncing",
+        "Cloudflared service depends on gateway being healthy",
+        "Includes .dockerignore for build context optimization",
+        "Unit tests pass"
+      ],
+      "priority": 16,
+      "passes": true,
+      "notes": "Created docker-compose.yml and .dockerignore. Verified in tests/test_container_and_tunnel.py."
+    },
+    {
+      "id": "US-017",
+      "title": "Cloudflare Zero-Trust Tunnel Ingress Configuration",
+      "description": "Outbound-only zero-trust ingress routing table with WebSocket proxying and mandatory 404 catch-all.",
+      "acceptanceCriteria": [
+        "cloudflared.yml specifies ingress rules for gateway host with HTTP/2 and WebSocket support",
+        "Mandatory catch-all rule http_status: 404 terminates unrouted traffic",
+        "scripts/setup_tunnel.ps1 and setup_tunnel.sh automate cloudflared login and DNS routing",
+        "Unit tests pass"
+      ],
+      "priority": 17,
+      "passes": true,
+      "notes": "Created cloudflared.yml, scripts/setup_tunnel.ps1, and scripts/setup_tunnel.sh. Verified."
+    },
+    {
+      "id": "US-018",
+      "title": "Phase 4 Master Ecosystem Integration Test Suite",
+      "description": "Comprehensive integration test coverage validating all 4 phases of the open-world platform.",
+      "acceptanceCriteria": [
+        "tests/test_phase4_devloop.py validates test runner, safety rules, and devloop router",
+        "tests/test_container_and_tunnel.py validates Docker and Tunnel configs",
+        "gateway_server.py mounts all routers and reports Phase 4 ONLINE status",
+        "All pytest test suites pass 100%"
+      ],
+      "priority": 18,
+      "passes": true,
+      "notes": "55/55 tests passing across all 12 test suites in 4.16s."
     }
   ]
 }
