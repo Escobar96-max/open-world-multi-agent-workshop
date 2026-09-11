@@ -112,10 +112,16 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from api.gatekeeper_router import router as gatekeeper_router
+from api.console_router import router as console_router
+
+app.include_router(gatekeeper_router)
+app.include_router(console_router)
 
 @app.get("/")
 def root():

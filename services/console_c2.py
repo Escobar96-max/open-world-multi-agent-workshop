@@ -1,0 +1,187 @@
+import os
+import re
+import secrets
+from datetime import datetime, timezone
+from typing import Dict, Any, Optional, Tuple
+
+from .vault_manager import VaultManager, VaultSecurityError
+
+class ConsoleSecurityError(Exception):
+    def __init__(self, message: str = "Unauthorized: Invalid or missing ADMIN_SECRET_KEY.", status_code: int = 401):
+        super().__init__(message)
+        self.message = message
+        self.status_code = status_code
+
+class ConsoleC2Service:
+    def __init__(self, vault_manager: Optional[VaultManager] = None, admin_key: Optional[str] = None, spatial_engine: Optional[Any] = None):
+        self.vault = vault_manager or VaultManager()
+        self.admin_key = admin_key or os.getenv("ADMIN_SECRET_KEY", "op_secret_master_key_9921")
+        self.spatial = spatial_engine
+
+    def verify_admin_key(self, provided_key: Optional[str]) -> None:
+        if not provided_key or not secrets.compare_digest(provided_key, self.admin_key):
+            raise ConsoleSecurityError("Unauthorized: Missing or invalid ADMIN_SECRET_KEY.")
+
+    def parse_and_execute(
+        self,
+        command: str,
+        target_agent: Optional[str] = None,
+        operator_id: str = "Operator_Root"
+    ) -> Dict[str, Any]:
+        """
+        Parses either a slash command (/teleport, /train) or a natural language directive.
+        """
+        if not command or not command.strip():
+            raise ValueError("Command cannot be empty.")
+
+        cmd = command.strip()
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        if cmd.startswith("/"):
+            result = self._execute_slash_command(cmd, operator_id)
+        else:
+            if not target_agent:
+                raise ValueError("Target agent must be specified for natural language directives.")
+            result = self._inject_directive_memory(target_agent, cmd, operator_id)
+
+        # Append to World/admin_logs.md
+        status_str = "SUCCESS" if result.get("status") == "SUCCESS" else "FAILED"
+        agent_target = target_agent or result.get("agent_id", "N/A")
+        safe_cmd = cmd.replace("\r", " ").replace("\n", " ").replace("|", "\\|")
+        safe_operator = str(operator_id).replace("\r", " ").replace("\n", " ").replace("|", "\\|")
+        safe_target = str(agent_target).replace("\r", " ").replace("\n", " ").replace("|", "\\|")
+        log_entry = f"| {now_iso} | {safe_operator} | `{safe_cmd}` | {safe_target} | {status_str} |"
+        self.vault.append_world_log("admin_logs", log_entry)
+
+        return result
+
+    def _execute_slash_command(self, slash_cmd: str, operator_id: str) -> Dict[str, Any]:
+        parts = slash_cmd.split()
+        keyword = parts[0].lower()
+
+        if keyword == "/teleport":
+            # Syntax: /teleport <agent_id> <x> <y>
+            if len(parts) != 4:
+                return {
+                    "status": "ERROR",
+                    "command": slash_cmd,
+                    "error": "Syntax error. Expected: /teleport <agent_id> <x> <y>"
+                }
+            
+            agent_id = parts[1]
+            try:
+                x = float(parts[2])
+                y = float(parts[3])
+            except ValueError:
+                return {"status": "ERROR", "error": "Coordinates x and y must be numerical values."}
+
+            if not (0.0 <= x <= 100.0 and 0.0 <= y <= 100.0):
+                return {"status": "ERROR", "error": "Coordinates out of bounds. Matrix bounded to [0,0] to [100,100]."}
+
+            # Update agent profile
+            try:
+                fm, body = self.vault.get_agent_profile(agent_id)
+            except FileNotFoundError:
+                fm = {"agent_id": agent_id, "name": agent_id}
+                body = f"# Profile for {agent_id}\n\nAuto-created via C2 Teleport."
+
+            fm["coordinates"] = [x, y]
+            # Check zone
+            if x <= 50.0 and y <= 50.0:
+                fm["zone"] = "Work Plaza"
+                fm["temperature"] = 0.2
+            else:
+                fm["zone"] = "Frequency Lounge & Sanctum"
+                fm["temperature"] = 1.6
+
+            self.vault.write_agent_profile(agent_id, fm, body)
+            if self.spatial:
+                try:
+                    self.spatial.teleport_agent(agent_id, x, y)
+                except Exception:
+                    pass
+
+            # Record memory of teleportation
+            mem_id = f"mem_tp_{int(datetime.now(timezone.utc).timestamp())}_{secrets.token_hex(2)}"
+            self.vault.add_agent_memory(
+                agent_id=agent_id,
+                memory_id=mem_id,
+                content=f"Operator executed /teleport to coordinates [{x}, {y}]. Shifted zone to {fm['zone']}.",
+                importance=8,
+                source="Operator_C2",
+                tags=["teleport", "c2_command"]
+            )
+
+            return {
+                "status": "SUCCESS",
+                "command": "/teleport",
+                "agent_id": agent_id,
+                "new_coordinates": [x, y],
+                "zone": fm["zone"],
+                "temperature": fm["temperature"]
+            }
+
+        elif keyword == "/train":
+            # Syntax: /train <agent_id> <curriculum>
+            if len(parts) < 3:
+                return {
+                    "status": "ERROR",
+                    "command": slash_cmd,
+                    "error": "Syntax error. Expected: /train <agent_id> <curriculum>"
+                }
+
+            agent_id = parts[1]
+            curriculum = " ".join(parts[2:])
+
+            mem_id = f"mem_train_{int(datetime.now(timezone.utc).timestamp())}_{secrets.token_hex(2)}"
+            self.vault.add_agent_memory(
+                agent_id=agent_id,
+                memory_id=mem_id,
+                content=f"Operator dispatched /train directive with curriculum: '{curriculum}'. Initiating Soup Zero preparation.",
+                importance=9,
+                source="Operator_C2",
+                tags=["training", "soup_zero", "curriculum"]
+            )
+
+            return {
+                "status": "SUCCESS",
+                "command": "/train",
+                "agent_id": agent_id,
+                "curriculum": curriculum,
+                "message": f"Training curriculum '{curriculum}' assigned to {agent_id}."
+            }
+
+        else:
+            return {
+                "status": "ERROR",
+                "command": slash_cmd,
+                "error": f"Unknown slash command: '{keyword}'. Available: /teleport, /train"
+            }
+
+    def _inject_directive_memory(self, agent_id: str, directive: str, operator_id: str) -> Dict[str, Any]:
+        """
+        Injects a natural language directive directly into /vault/Agents/{agent_id}/memories/
+        with Importance 10/10 and Source: Operator.
+        """
+        self.vault.validate_identifier(agent_id)
+        mem_id = f"mem_op_{int(datetime.now(timezone.utc).timestamp())}_{secrets.token_hex(2)}"
+        
+        mem_file = self.vault.add_agent_memory(
+            agent_id=agent_id,
+            memory_id=mem_id,
+            content=f"OPERATOR DIRECTIVE: {directive}",
+            importance=10,
+            source=operator_id,
+            tags=["directive", "operator_priority_10", "override"]
+        )
+
+        return {
+            "status": "SUCCESS",
+            "type": "NATURAL_LANGUAGE_DIRECTIVE",
+            "agent_id": agent_id,
+            "memory_id": mem_id,
+            "importance": 10,
+            "source": operator_id,
+            "memory_file": str(mem_file),
+            "directive": directive
+        }
