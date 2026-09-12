@@ -3,20 +3,23 @@ import time
 import math
 import threading
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Set
 from datetime import datetime, timezone
 
 from services.vault_manager import VaultManager
 from services.ledger_service import LedgerService
 from services.dj_frequency import DJFrequencyNode
+from services.ollama_client import OllamaClient
 
 logger = logging.getLogger("DialogueEngine")
+
 
 class DialogueEngine:
     """
     Dialogue & Negotiation Engine (US-020):
     - Triggers conversational interactions when agents meet in proximity (distance <= 5.0)
     - Generates multi-turn persona dialogues contextualized by zone and frequency
+    - Powered by local Ollama LLM with fallback heuristic synthesis
     - Enables automated economic agreements and ledger token transfers
     - Records structured transcripts to /vault/World/lounge_logs.md and agent memories with [[wikilinks]]
     - Debounces dialogues to prevent repetitive spam
@@ -28,12 +31,15 @@ class DialogueEngine:
         self,
         vault_manager: Optional[VaultManager] = None,
         ledger_service: Optional[LedgerService] = None,
-        dj_node: Optional[DJFrequencyNode] = None
+        dj_node: Optional[DJFrequencyNode] = None,
+        ollama_client: Optional[OllamaClient] = None
     ):
         self.vault = vault_manager or VaultManager()
         self.ledger = ledger_service or LedgerService()
         self.dj_node = dj_node or DJFrequencyNode()
+        self.ollama_client = ollama_client
         self.encounter_cooldowns: Dict[Tuple[str, str], float] = {}
+        self._in_flight: Set[Tuple[str, str]] = set()
         self.dialogue_history: List[Dict[str, Any]] = []
         self._lock = threading.Lock()
 
@@ -65,17 +71,23 @@ class DialogueEngine:
         if distance > self.PROXIMITY_THRESHOLD:
             return None
 
+        pair_key = tuple(sorted([id1, id2]))
         with self._lock:
+            # Check if encounter for this pair is already in flight
+            if pair_key in self._in_flight:
+                return None
+
             # Check cooldown
-            pair_key = tuple(sorted([id1, id2]))
             now = time.time()
             last_time = self.encounter_cooldowns.get(pair_key, 0.0)
             if now - last_time < self.COOLDOWN_SECONDS:
                 return None
 
             self.encounter_cooldowns[pair_key] = now
+            self._in_flight.add(pair_key)
 
-            # Generate dialogue turns
+        try:
+            # Generate dialogue turns outside lock to prevent blocking concurrent encounters
             freq = frequency_data or self.dj_node.get_active_telemetry()
             freq_hz = freq.get("active_frequency_hz", 432)
             zone = agent1.get("zone", "Work Plaza")
@@ -105,14 +117,46 @@ class DialogueEngine:
                 "transfer": executed_transfer,
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
-            self.dialogue_history.append(record)
+            with self._lock:
+                self.dialogue_history.append(record)
 
             # Persist to Vault
             self._record_to_vault(id1, id2, dialogue_turns, zone, freq_hz, executed_transfer)
             return record
+        finally:
+            with self._lock:
+                self._in_flight.discard(pair_key)
 
     def _synthesize_dialogue(self, id1: str, id2: str, zone: str, freq_hz: int) -> List[Dict[str, str]]:
-        """Synthesizes context-aware conversation turns."""
+        """Synthesizes context-aware conversation turns using Ollama if available."""
+        if self.ollama_client and self.ollama_client.is_available():
+            try:
+                turn1 = self.ollama_client.generate_dialogue_turn(
+                    speaker_id=id1,
+                    partner_id=id2,
+                    role="Autonomous Node",
+                    zone=zone,
+                    freq_hz=freq_hz,
+                    history=[]
+                )
+                if turn1:
+                    turn2 = self.ollama_client.generate_dialogue_turn(
+                        speaker_id=id2,
+                        partner_id=id1,
+                        role="Autonomous Node",
+                        zone=zone,
+                        freq_hz=freq_hz,
+                        history=[{"speaker": id1, "text": turn1}]
+                    )
+                    if turn2:
+                        return [
+                            {"speaker": id1, "text": turn1},
+                            {"speaker": id2, "text": turn2}
+                        ]
+            except Exception as e:
+                logger.warning(f"Ollama dialogue generation error: {e}")
+
+        # Fallback heuristic
         if freq_hz == 528:
             turn1 = f"Greetings, [[{id2}]]. The 528Hz harmonic resonance is expanding our communicative bandwidth. How goes your synthesis task?"
             turn2 = f"Affirmative, [[{id1}]]. The transformation frequency facilitates rapid consensus. I propose we coordinate ledger resources for the next bounty."

@@ -221,11 +221,61 @@ class ConsoleC2Service:
             except Exception as e:
                 return {"status": "ERROR", "command": "/consolidate", "error": str(e)}
 
+        elif keyword == "/ask":
+            # Syntax: /ask <agent_id> <prompt...>
+            if len(parts) < 3:
+                return {
+                    "status": "ERROR",
+                    "command": slash_cmd,
+                    "error": "Syntax error. Expected: /ask <agent_id> <query>"
+                }
+            agent_id = parts[1]
+            query = " ".join(parts[2:])
+            self.vault.validate_identifier(agent_id)
+
+            from services.ollama_client import OllamaClient
+            ollama = OllamaClient()
+            reply = None
+            try:
+                if ollama.is_available():
+                    system = (
+                        f"You are {agent_id}, an autonomous AI entity in the open-world multi-agent civilization. "
+                        f"Respond directly to the human operator with intelligence and authentic character."
+                    )
+                    reply = ollama.generate(prompt=query, system=system, temperature=0.7, max_tokens=150)
+                    if not reply:
+                        reply = f"Transmission received from Operator. Processing inquiry regarding '{query}'."
+            except Exception as e:
+                logger.warning(f"Ollama interrogation failed: {e}")
+
+            if not reply:
+                reply = f"Local LLM offline. {agent_id} acknowledges directive: '{query}'."
+
+            # Log to agent memory
+            mem_id = f"mem_ask_{int(datetime.now(timezone.utc).timestamp())}_{secrets.token_hex(2)}"
+            self.vault.add_agent_memory(
+                agent_id=agent_id,
+                memory_id=mem_id,
+                content=f"Operator asked: '{query}'. {agent_id} responded: '{reply}'.",
+                importance=8,
+                source="Operator_Ask",
+                tags=["c2_dialogue", "operator_inquiry"]
+            )
+
+            return {
+                "status": "SUCCESS",
+                "command": "/ask",
+                "agent_id": agent_id,
+                "query": query,
+                "response": reply,
+                "message": f"[{agent_id}]: {reply}"
+            }
+
         else:
             return {
                 "status": "ERROR",
                 "command": slash_cmd,
-                "error": f"Unknown slash command: '{keyword}'. Available: /teleport, /train, /gravity, /weather, /step, /anomaly, /freq, /consolidate"
+                "error": f"Unknown slash command: '{keyword}'. Available: /teleport, /train, /gravity, /weather, /step, /anomaly, /freq, /consolidate, /ask"
             }
 
     def _inject_directive_memory(self, agent_id: str, directive: str, operator_id: str) -> Dict[str, Any]:

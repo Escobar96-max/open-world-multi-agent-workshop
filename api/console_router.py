@@ -7,13 +7,15 @@ from typing import Optional, Dict, Any
 from services.console_c2 import ConsoleC2Service, ConsoleSecurityError
 from services.vault_manager import VaultManager
 from services.cognitive_engine import CognitiveEngine
+from services.ollama_client import OllamaClient
 from api.spatial_router import spatial_engine, dj_frequency, lounge_mgr
 from api.memory_router import ledger_service
 
 router = APIRouter(prefix="/api/v1/console", tags=["Operator Command & Control (C2)"])
 vault_mgr = VaultManager()
+ollama_client = OllamaClient()
 console_service = ConsoleC2Service(vault_manager=vault_mgr, spatial_engine=spatial_engine)
-cognitive_engine = CognitiveEngine(vault_manager=vault_mgr, dj_node=dj_frequency)
+cognitive_engine = CognitiveEngine(vault_manager=vault_mgr, dj_node=dj_frequency, ollama_client=ollama_client)
 
 
 class ConsoleCommandRequest(BaseModel):
@@ -93,6 +95,60 @@ async def get_agent_consciousness(agent_id: str):
         "balance": balance,
         "recent_memories": memories,
         "frequency": freq_data
+    }
+
+class OllamaAskRequest(BaseModel):
+    agent_id: str = Field(..., description="Agent ID to interrogate")
+    query: str = Field(..., description="Question or prompt for the agent's LLM mind")
+    temperature: Optional[float] = Field(0.7, description="Sampling temperature")
+
+@router.get("/ollama/status", summary="Local Ollama LLM Status")
+async def get_ollama_status(x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key")):
+    """Returns local Ollama health, active model, and available models."""
+    try:
+        console_service.verify_admin_key(x_admin_key)
+    except ConsoleSecurityError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    is_up = ollama_client.is_available()
+    active_model = ollama_client.get_active_model()
+    models = ollama_client.list_models() if is_up else []
+    return {
+        "status": "ONLINE" if is_up else "OFFLINE",
+        "available": is_up,
+        "base_url": ollama_client.base_url,
+        "active_model": active_model,
+        "installed_models": models
+    }
+
+@router.post("/ollama/ask", summary="Direct Agent Mind Interrogation")
+async def ask_agent_mind(
+    req: OllamaAskRequest,
+    x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key")
+):
+    """Directly interrogates an agent's Ollama LLM mind."""
+    try:
+        console_service.verify_admin_key(x_admin_key)
+    except ConsoleSecurityError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    vault_mgr.validate_identifier(req.agent_id)
+    if not ollama_client.is_available():
+        raise HTTPException(status_code=503, detail="Local Ollama daemon is offline or unreachable.")
+
+    system = (
+        f"You are {req.agent_id}, an autonomous AI entity in an open-world civilization. "
+        f"Answer the operator directly with authentic character and intelligence."
+    )
+    temperature = 0.7 if req.temperature is None else req.temperature
+    reply = ollama_client.generate(prompt=req.query, system=system, temperature=temperature)
+    if not reply:
+        raise HTTPException(status_code=500, detail="Ollama failed to generate a response.")
+    return {
+        "agent_id": req.agent_id,
+        "query": req.query,
+        "model": ollama_client.get_active_model(),
+        "response": reply
     }
 
 @router.get("/deck", response_class=HTMLResponse, summary="Unified Operator C2 & Autonomous Open World Command Deck")

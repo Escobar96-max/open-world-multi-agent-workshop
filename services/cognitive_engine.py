@@ -6,20 +6,28 @@ from datetime import datetime, timezone
 
 from services.vault_manager import VaultManager
 from services.dj_frequency import DJFrequencyNode, SUPPORTED_FREQUENCIES
+from services.ollama_client import OllamaClient
 
 logger = logging.getLogger("CognitiveEngine")
 
 class CognitiveEngine:
     """
-    Cognitive Decision Engine (US-019):
+    Cognitive Decision Engine for Agent Civilization.
     - Generates situational perception for autonomous agents
     - Integrates 2D coordinates, zone cognitive temperatures (Work Plaza 0.25 vs Lounge 1.7)
     - Entrains agent decision-making with active audio frequency (432Hz, 528Hz, 40Hz)
+    - Powered by local Ollama LLM with graceful fallback heuristic
     - Generates situational intentions, actions, and records inner monologue to Obsidian profiles
     """
-    def __init__(self, vault_manager: Optional[VaultManager] = None, dj_node: Optional[DJFrequencyNode] = None):
+    def __init__(
+        self,
+        vault_manager: Optional[VaultManager] = None,
+        dj_node: Optional[DJFrequencyNode] = None,
+        ollama_client: Optional[OllamaClient] = None
+    ):
         self.vault = vault_manager or VaultManager()
         self.dj_node = dj_node or DJFrequencyNode()
+        self.ollama_client = ollama_client
         self.history: List[Dict[str, Any]] = []
 
     def build_cognitive_prompt(self, agent_data: Dict[str, Any], frequency_data: Optional[Dict[str, Any]] = None) -> str:
@@ -60,7 +68,27 @@ class CognitiveEngine:
         zone = agent_data.get("zone", "Work Plaza")
         temp = agent_data.get("dynamic_temperature", agent_data.get("temperature", 0.2))
 
-        if not llm_response:
+        thought = None
+        action = None
+
+        if llm_response:
+            thought = llm_response.strip()
+        elif self.ollama_client:
+            try:
+                if self.ollama_client.is_available():
+                    prompt = self.build_cognitive_prompt(agent_data, freq)
+                    system = (
+                        f"You are the inner consciousness of autonomous agent '{agent_id}'. "
+                        f"Declare your immediate situational thoughts concisely (1-2 sentences) "
+                        f"and state your action choice: EXPLORE, SOLVE_BOUNTY, CONSOLIDATE_MEMORY, FREQUENCY_MEDITATION, AUDIT_LEDGER, SEEK_COLLABORATION."
+                    )
+                    llm_text = self.ollama_client.generate(prompt=prompt, system=system, temperature=temp, max_tokens=150)
+                    if llm_text:
+                        thought = llm_text.strip()
+            except Exception as e:
+                logger.warning(f"Ollama cognitive tick generation error for {agent_id}: {e}")
+
+        if not thought:
             # Deterministic/heuristic fallback aligned with cognitive parameters
             if freq_hz == 40:
                 action = "SOLVE_BOUNTY"
@@ -75,8 +103,8 @@ class CognitiveEngine:
                 else:
                     action = "EXPLORE"
                     thought = f"Maintaining perimeter patrol across Work Plaza with precision index {temp:.2f}."
-        else:
-            thought = llm_response.strip()
+
+        if not action:
             action = "EXPLORE"
             for act in ["SOLVE_BOUNTY", "CONSOLIDATE_MEMORY", "FREQUENCY_MEDITATION", "AUDIT_LEDGER", "SEEK_COLLABORATION"]:
                 if act in thought.upper():
