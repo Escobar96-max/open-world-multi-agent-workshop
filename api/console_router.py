@@ -6,11 +6,15 @@ from typing import Optional, Dict, Any
 
 from services.console_c2 import ConsoleC2Service, ConsoleSecurityError
 from services.vault_manager import VaultManager
+from services.cognitive_engine import CognitiveEngine
 from api.spatial_router import spatial_engine, dj_frequency, lounge_mgr
+from api.memory_router import ledger_service
 
 router = APIRouter(prefix="/api/v1/console", tags=["Operator Command & Control (C2)"])
 vault_mgr = VaultManager()
 console_service = ConsoleC2Service(vault_manager=vault_mgr, spatial_engine=spatial_engine)
+cognitive_engine = CognitiveEngine(vault_manager=vault_mgr, dj_node=dj_frequency)
+
 
 class ConsoleCommandRequest(BaseModel):
     command: str = Field(..., description="Slash command (e.g., /teleport, /train) or natural language directive")
@@ -52,8 +56,48 @@ async def execute_console_command(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal C2 failure: {str(e)}")
 
+@router.get("/agent/{agent_id}/consciousness", summary="Agent Holographic Consciousness Telemetry")
+async def get_agent_consciousness(agent_id: str):
+    """
+    Returns real-time consciousness, inner monologue, ledger balance,
+    and memory telemetry for an agent.
+    """
+    vault_mgr.validate_identifier(agent_id)
+    agent_info = spatial_engine.agents.get(agent_id, {
+        "agent_id": agent_id,
+        "x": 50.0,
+        "y": 50.0,
+        "zone": "Work Plaza",
+        "temperature": 0.2,
+        "role": "Autonomous Node"
+    })
+    
+    freq_data = dj_frequency.get_current_state()
+    cognitive_tick = cognitive_engine.generate_cognitive_tick(agent_info, freq_data, persist=False)
+    balance = ledger_service.get_balance(agent_id)
+    
+    memories = []
+    mem_dir = os.path.join(vault_mgr.vault_root, "Agents", agent_id, "memories")
+    if os.path.exists(mem_dir):
+        md_files = [f for f in os.listdir(mem_dir) if f.endswith(".md")]
+        md_files.sort(
+            key=lambda f: os.path.getmtime(os.path.join(mem_dir, f)) if os.path.exists(os.path.join(mem_dir, f)) else 0,
+            reverse=True
+        )
+        memories = md_files[:5]
+
+    return {
+        "agent_id": agent_id,
+        "spatial": agent_info,
+        "cognitive": cognitive_tick,
+        "balance": balance,
+        "recent_memories": memories,
+        "frequency": freq_data
+    }
+
 @router.get("/deck", response_class=HTMLResponse, summary="Unified Operator C2 & Autonomous Open World Command Deck")
 async def get_web_command_deck():
+
     """
     Mounts the Unified Operator C2 Command Deck & Autonomous Open-World Visualizer
     on GET /api/v1/console/deck:
@@ -381,8 +425,54 @@ async def get_web_command_deck():
 
   </main>
 
+  <!-- Holographic Agent Consciousness Modal (US-022) -->
+  <div id="consciousnessModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-card rounded-2xl max-w-lg w-full p-5 border border-cyan-500/40 shadow-2xl relative">
+      <button onclick="closeConsciousnessModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white font-mono text-sm">✕</button>
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-xl">🧠</div>
+        <div>
+          <h3 id="modalAgentName" class="heading-font text-base font-black text-cyan-300">Agent Consciousness</h3>
+          <div id="modalAgentRole" class="text-[11px] text-slate-400 font-mono">Role / Zone</div>
+        </div>
+      </div>
+
+      <!-- Cognitive Pulse & Inner Monologue -->
+      <div class="p-3 rounded-xl bg-slate-950/80 border border-cyan-500/30 mb-3">
+        <div class="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-1">Live Cognitive Pulse (Inner Monologue)</div>
+        <p id="modalInnerMonologue" class="text-xs text-slate-200 font-mono italic">"Perceiving surroundings..."</p>
+      </div>
+
+      <!-- Telemetry Matrix -->
+      <div class="grid grid-cols-2 gap-2 text-[11px] font-mono mb-3">
+        <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+          <span class="text-slate-400">Position:</span> <strong id="modalPos" class="text-cyan-300">(0, 0)</strong>
+        </div>
+        <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+          <span class="text-slate-400">Ledger Balance:</span> <strong id="modalBalance" class="text-emerald-400">0.00 TK</strong>
+        </div>
+        <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+          <span class="text-slate-400">Zone Temp:</span> <strong id="modalTemp" class="text-amber-300">0.2T</strong>
+        </div>
+        <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+          <span class="text-slate-400">Frequency:</span> <strong id="modalFreq" class="text-fuchsia-300">432Hz</strong>
+        </div>
+      </div>
+
+      <!-- Operator Thought / Directive Injection -->
+      <div class="space-y-1.5">
+        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Inject Operator Thought Directive</label>
+        <div class="flex gap-2">
+          <input id="modalThoughtInput" type="text" placeholder="Inject priority directive into agent consciousness..." class="flex-1 bg-slate-950/90 border border-slate-700 rounded px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:border-cyan-400 focus:outline-none" />
+          <button onclick="injectThoughtDirectly()" class="px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded font-bold text-xs">Inject</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- JavaScript Controller & 60FPS Unified Canvas Engine -->
   <script>
+
     // State Variables
     let currentFrequency = 432;
     let audioCtx = null;
@@ -420,16 +510,84 @@ async def get_web_command_deck():
       document.getElementById('overlaySelectedAgent').innerText = e.target.value;
     });
 
-    // Click Canvas to Teleport Selected Agent
+    let inspectedAgentId = null;
+
+    async function openConsciousnessModal(agentId) {
+      inspectedAgentId = agentId;
+      document.getElementById('modalAgentName').innerText = `🧠 Consciousness: ${agentId}`;
+      document.getElementById('modalInnerMonologue').innerText = 'Syncing cognitive pulse from Obsidian vault...';
+      document.getElementById('consciousnessModal').classList.remove('hidden');
+
+      try {
+        const res = await fetch(`/api/v1/console/agent/${agentId}/consciousness`);
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('modalAgentRole').innerText = `${data.spatial.role} • ${data.spatial.zone}`;
+          document.getElementById('modalInnerMonologue').innerText = `"${data.cognitive.inner_monologue || 'Patrolling...'}"`;
+          document.getElementById('modalPos').innerText = `(${Math.round(data.spatial.x)}, ${Math.round(data.spatial.y)})`;
+          document.getElementById('modalBalance').innerText = `${data.balance.toFixed(2)} TK`;
+          document.getElementById('modalTemp').innerText = `${data.spatial.dynamic_temperature || data.spatial.temperature}T`;
+          document.getElementById('modalFreq').innerText = `${data.frequency.active_frequency_hz}Hz (${data.frequency.profile_name})`;
+        }
+      } catch (err) {
+        console.error('Consciousness fetch error:', err);
+      }
+    }
+
+    function closeConsciousnessModal() {
+      document.getElementById('consciousnessModal').classList.add('hidden');
+      inspectedAgentId = null;
+    }
+
+    async function injectThoughtDirectly() {
+      const thought = document.getElementById('modalThoughtInput').value.trim();
+      if (!thought || !inspectedAgentId) return;
+
+      const adminKey = document.getElementById('adminKey').value;
+      logTerminal(`[CONSCIOUSNESS INJECTION] Injecting directive into [[${inspectedAgentId}]]: "${thought}"`);
+
+      try {
+        const res = await fetch('/api/v1/console/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+          body: JSON.stringify({
+            command: thought,
+            target_agent: inspectedAgentId,
+            admin_key: adminKey
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          logTerminal(`[INJECTION APPLIED] Priority directive lodged in agent consciousness.`);
+          document.getElementById('modalThoughtInput').value = '';
+          openConsciousnessModal(inspectedAgentId);
+        } else {
+          logTerminal(`[INJECTION FAILED] ${data.detail || JSON.stringify(data)}`);
+        }
+      } catch (e) {
+        logTerminal(`[NETWORK ERROR] ${e.message}`);
+      }
+    }
+
+    // Click Canvas to Teleport Selected Agent OR Inspect Agent Consciousness
     canvas.addEventListener('click', (e) => {
       const rect = canvas.getBoundingClientRect();
       const scaleX = 100 / rect.width;
       const scaleY = 100 / rect.height;
       const x = Math.round((e.clientX - rect.left) * scaleX);
       const y = Math.round((e.clientY - rect.top) * scaleY);
+      
+      // Check if clicked near an agent (within 6 units)
+      if (spatialState && spatialState.agents) {
+        const clickedAgent = spatialState.agents.find(a => Math.hypot(a.x - x, a.y - y) <= 6.0);
+        if (clickedAgent) {
+          openConsciousnessModal(clickedAgent.agent_id);
+          return;
+        }
+      }
+
       const target = document.getElementById('targetAgentSelect').value;
       const adminKey = document.getElementById('adminKey').value;
-      
       executeTeleportDirect(target, x, y, adminKey);
     });
 
@@ -803,6 +961,9 @@ async def get_web_command_deck():
             <span>Pos: (${Math.round(a.x)}, ${Math.round(a.y)})</span>
             <span>Temp: <strong class="text-cyan-300">${a.dynamic_temperature || a.temperature || '0.2'}</strong></span>
           </div>
+          <button onclick="openConsciousnessModal('${a.agent_id}')" class="mt-1.5 w-full py-1 rounded bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-700/50 text-[10px] font-mono text-cyan-300 font-bold transition flex items-center justify-center gap-1">
+            <span>🧠</span> Inspect Consciousness
+          </button>
         </div>
       `).join('');
     }

@@ -113,3 +113,8 @@ class DJFrequencyNode:
 
     def get_history(self) -> List[Dict[str, Any]]:
         return list(self.history)
+
+    def get_active_telemetry(self) -> Dict[str, Any]:
+        """Alias for get_current_state for telemetry consistency."""
+        return self.get_current_state()
+

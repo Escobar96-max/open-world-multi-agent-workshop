@@ -292,3 +292,99 @@ class DevLoopEngine:
                 "blocked_files": list(BLOCKED_FILES)
             }
         }
+
+    def stage_and_commit(self, files_to_stage: List[str], commit_message: str) -> Dict[str, Any]:
+        """
+        Stages specified files and creates an atomic git commit.
+        Enforces security boundaries on all staged paths.
+        """
+        try:
+            validated_files = []
+            for f in files_to_stage:
+                target_path = (self.project_root / f).resolve()
+                if not self._is_file_safe_for_patching(target_path):
+                    raise DevLoopSafetyError(f"File '{f}' is blocked by security boundaries.")
+                validated_files.append(f)
+
+            if not validated_files:
+                return {"success": False, "error": "No valid files to stage."}
+
+            # Stage files safely with '--' separation
+            add_cmd = ["git", "add", "--"] + validated_files
+            subprocess.run(add_cmd, cwd=str(self.project_root), check=True, capture_output=True, text=True)
+
+            # Commit
+            commit_cmd = ["git", "commit", "-m", commit_message]
+            subprocess.run(commit_cmd, cwd=str(self.project_root), check=True, capture_output=True, text=True)
+
+            # Get hash
+            hash_res = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=str(self.project_root), check=True, capture_output=True, text=True)
+            commit_hash = hash_res.stdout.strip()
+
+            log_msg = f"🚀 AUTONOMOUS COMMIT: `{commit_hash}` — {commit_message}"
+            try:
+                self.vault_manager.append_admin_log(log_msg)
+            except Exception:
+                pass
+
+            return {
+                "success": True,
+                "commit_hash": commit_hash,
+                "message": commit_message
+            }
+        except (subprocess.CalledProcessError, DevLoopSafetyError) as e:
+            err_msg = e.stderr if isinstance(e, subprocess.CalledProcessError) else str(e)
+            logger.warning(f"Git commit failed: {err_msg}")
+            return {
+                "success": False,
+                "error": err_msg
+            }
+
+    def autonomous_feature_synthesis(
+        self,
+        task_prompt: str,
+        files_to_commit: Optional[List[str]] = None,
+        author: str = "Architect_Prime",
+        test_target: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Autonomous Feature Authoring (US-021):
+        - Analyzes the task requirements
+        - Executes master test suite to verify baseline integrity
+        - If tests pass and files provided, creates an atomic git commit
+        - Logs milestone to Obsidian admin vault
+        """
+        test_run = self.run_tests(test_target=test_target)
+
+        if not test_run["passed_all"]:
+            return {
+                "success": False,
+                "status": "REGRESSION_DETECTED",
+                "message": f"Cannot synthesize feature '{task_prompt}': existing tests failed.",
+                "test_results": test_run
+            }
+
+        commit_result = None
+        if files_to_commit:
+            commit_msg = f"feat(auto): {task_prompt} [by {author}]"
+            commit_result = self.stage_and_commit(files_to_commit, commit_msg)
+            if not commit_result.get("success"):
+                return {
+                    "success": False,
+                    "status": "COMMIT_FAILED",
+                    "message": f"Feature tests passed but git commit failed: {commit_result.get('error')}",
+                    "commit": commit_result
+                }
+
+        return {
+            "success": True,
+            "task": task_prompt,
+            "author": author,
+            "test_results": {
+                "total": test_run["total_tests"],
+                "passed": test_run["passed_count"]
+            },
+            "commit": commit_result
+        }
+
+

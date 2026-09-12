@@ -74,6 +74,8 @@ class TelegramBotBridge:
                     "• `/broadcast <msg>` - Send ambient broadcast across world\n"
                     "• `/balance <agent>` - Inspect agent token balance\n"
                     "• `/frequency` - Current DJ solfeggio audio frequency\n"
+                    "• `/freq <hz>` - Dynamically modulate frequency (432, 528, 40)\n"
+                    "• `/bounties` - Query open civilization bounties\n"
                     "• `/help` - Show this command deck"
                 )
             }
@@ -104,19 +106,40 @@ class TelegramBotBridge:
             )
             return {"success": True, "reply": reply, "telemetry": spatial_state}
 
-        elif cmd == "/frequency":
-            freq_state = self.dj_frequency.get_current_state()
-            freq_hz = freq_state.get("active_frequency_hz", 432)
-            cog_state = freq_state.get("cognitive_state", "EQUILIBRIUM")
-            reply = (
-                f"🎶 **DJ Frequency Node**: {freq_hz} Hz\n"
-                f"• Profile: {freq_state.get('profile_name', 'Harmonic Grounding')}\n"
-                f"• State: {cog_state}\n"
-                f"• Description: {freq_state.get('description', '')}"
-            )
-            return {"success": True, "reply": reply, "frequency": freq_state}
+        elif cmd in ("/frequency", "/freq"):
+            if args:
+                try:
+                    target_hz = int(args[0])
+                    new_state = self.dj_frequency.set_frequency(target_hz, reason=f"Telegram Operator {user_id}")
+                    return {
+                        "success": True,
+                        "reply": f"🎛️ **DJ Frequency Shifted** to `{target_hz} Hz` ({new_state.get('profile_name')}). Cognitive state: `{new_state.get('cognitive_state')}`.",
+                        "frequency": new_state
+                    }
+                except Exception as e:
+                    return {"success": False, "reply": f"❌ Frequency shift error: {str(e)}"}
+            else:
+                freq_state = self.dj_frequency.get_current_state()
+                freq_hz = freq_state.get("active_frequency_hz", 432)
+                cog_state = freq_state.get("cognitive_state", "EQUILIBRIUM")
+                reply = (
+                    f"🎶 **DJ Frequency Node**: {freq_hz} Hz\n"
+                    f"• Profile: {freq_state.get('profile_name', 'Harmonic Grounding')}\n"
+                    f"• State: {cog_state}\n"
+                    f"• Description: {freq_state.get('description', '')}"
+                )
+                return {"success": True, "reply": reply, "frequency": freq_state}
+
+        elif cmd == "/bounties":
+            bounty_file = os.path.join(self.vault_manager.vault_root, "World", "bounty_board.md")
+            if os.path.exists(bounty_file):
+                with open(bounty_file, "r", encoding="utf-8") as bf:
+                    content = bf.read()
+                return {"success": True, "reply": f"📜 **Synthesis Sanctum Bounties**:\n\n{content[:500]}..."}
+            return {"success": True, "reply": "📜 No active bounties currently on the board."}
 
         elif cmd == "/balance":
+
             if not args:
                 return {"success": False, "reply": "Usage: `/balance <agent_id>`"}
             agent_id = args[0]
