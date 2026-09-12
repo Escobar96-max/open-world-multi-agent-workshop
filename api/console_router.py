@@ -1,4 +1,7 @@
 import os
+import logging
+import secrets
+from datetime import datetime, timezone
 from fastapi import APIRouter, Header, HTTPException, Body
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
@@ -10,6 +13,8 @@ from services.cognitive_engine import CognitiveEngine
 from services.ollama_client import OllamaClient
 from api.spatial_router import spatial_engine, dj_frequency, lounge_mgr
 from api.memory_router import ledger_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/console", tags=["Operator Command & Control (C2)"])
 vault_mgr = VaultManager()
@@ -101,6 +106,7 @@ class OllamaAskRequest(BaseModel):
     agent_id: str = Field(..., description="Agent ID to interrogate")
     query: str = Field(..., description="Question or prompt for the agent's LLM mind")
     temperature: Optional[float] = Field(0.7, description="Sampling temperature")
+    admin_key: Optional[str] = Field(None, description="Admin secret key (optional in body)")
 
 @router.get("/ollama/status", summary="Local Ollama LLM Status")
 async def get_ollama_status(x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key")):
@@ -126,29 +132,57 @@ async def ask_agent_mind(
     req: OllamaAskRequest,
     x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key")
 ):
-    """Directly interrogates an agent's Ollama LLM mind."""
+    """Directly interrogates an agent's Ollama LLM mind with memory persistence and fallback."""
+    admin_key = x_admin_key or req.admin_key
     try:
-        console_service.verify_admin_key(x_admin_key)
+        console_service.verify_admin_key(admin_key)
     except ConsoleSecurityError as e:
         raise HTTPException(status_code=401, detail=str(e))
 
     vault_mgr.validate_identifier(req.agent_id)
-    if not ollama_client.is_available():
-        raise HTTPException(status_code=503, detail="Local Ollama daemon is offline or unreachable.")
+    
+    reply = None
+    model_name = ollama_client.get_active_model()
+    is_up = ollama_client.is_available()
+    if is_up:
+        system = (
+            f"You are {req.agent_id}, an autonomous AI entity in an open-world civilization. "
+            f"Answer the operator directly with authentic character, situational awareness, and concise clarity."
+        )
+        temperature = 0.7 if req.temperature is None else req.temperature
+        reply = ollama_client.generate(prompt=req.query, system=system, temperature=temperature)
 
-    system = (
-        f"You are {req.agent_id}, an autonomous AI entity in an open-world civilization. "
-        f"Answer the operator directly with authentic character and intelligence."
-    )
-    temperature = 0.7 if req.temperature is None else req.temperature
-    reply = ollama_client.generate(prompt=req.query, system=system, temperature=temperature)
     if not reply:
-        raise HTTPException(status_code=500, detail="Ollama failed to generate a response.")
+        # Authentic persona heuristic fallback response
+        reply = (
+            f"[{req.agent_id} Cognitive Core]: Telemetry received for query '{req.query}'. "
+            f"Perimeter secure, frequency resonant at current octave. Standing by for directives."
+        )
+        model_name = "heuristic-persona"
+
+    # Persist conversation turn into agent memory stream in Obsidian vault
+    mem_id = f"mem_chat_{int(datetime.now(timezone.utc).timestamp())}_{secrets.token_hex(8)}"
+    persisted = False
+    try:
+        vault_mgr.add_agent_memory(
+            agent_id=req.agent_id,
+            memory_id=mem_id,
+            content=f"Operator Chat: '{req.query}'. Agent Response: '{reply}'",
+            importance=8,
+            source="Operator_Chatbox",
+            tags=["chatbox", "conversation", "operator", req.agent_id]
+        )
+        persisted = True
+    except Exception as e:
+        logger.warning(f"Failed to persist chat memory for {req.agent_id}: {e}")
+
     return {
+        "success": True,
         "agent_id": req.agent_id,
         "query": req.query,
-        "model": ollama_client.get_active_model(),
-        "response": reply
+        "model": model_name,
+        "response": reply,
+        "persisted": persisted
     }
 
 @router.get("/deck", response_class=HTMLResponse, summary="Unified Operator C2 & Autonomous Open World Command Deck")
@@ -437,7 +471,7 @@ async def get_web_command_deck():
       </div>
     </div>
 
-    <!-- RIGHT COLUMN (3 Cols): Agent Telemetry & Frequency Lounge Dialogue Feed -->
+    <!-- RIGHT COLUMN (3 Cols): Agent Telemetry, Agent Chatbox & Frequency Lounge -->
     <div class="lg:col-span-3 flex flex-col gap-4">
       
       <!-- Active Agent Telemetry Cards -->
@@ -446,24 +480,105 @@ async def get_web_command_deck():
           <h3 class="heading-font text-xs font-bold text-slate-300 uppercase tracking-wider">👥 Active Agents Telemetry</h3>
           <span id="agentCountBadge" class="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40">2 Active</span>
         </div>
-        <div id="agentCardsContainer" class="space-y-2 overflow-y-auto max-h-[220px]">
+        <div id="agentCardsContainer" class="space-y-2 overflow-y-auto max-h-[190px]">
           <div class="text-xs text-slate-500 font-mono">Detecting agent telemetry...</div>
         </div>
       </div>
 
-      <!-- Frequency Lounge Dialogue Feed -->
-      <div class="glass-card rounded-2xl p-3.5 flex-1 flex flex-col border border-fuchsia-500/25">
-        <div class="flex justify-between items-center mb-2">
-          <h3 class="heading-font text-xs font-bold text-fuchsia-300 uppercase tracking-wider flex items-center gap-1.5">
-            <span>🍸 The Frequency Lounge</span>
-          </h3>
-          <button onclick="postSimulatedDialogue()" class="text-[10px] bg-fuchsia-950/80 hover:bg-fuchsia-900 text-fuchsia-300 border border-fuchsia-700/50 px-2 py-0.5 rounded font-mono">
-            + Banter
-          </button>
+      <!-- Tabbed Container: [ 💬 Agent Chatbox ] & [ 🍸 Frequency Lounge ] -->
+      <div class="glass-card rounded-2xl p-3.5 flex-1 flex flex-col border border-cyan-500/30">
+        <!-- Tab Switcher -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+          <div class="flex items-center gap-1">
+            <button id="tabBtnChat" onclick="switchRightTab('chat')" class="px-2.5 py-1 text-xs font-bold rounded-lg transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1.5">
+              <span>💬</span> Chatbox
+            </button>
+            <button id="tabBtnLounge" onclick="switchRightTab('lounge')" class="px-2.5 py-1 text-xs font-bold rounded-lg transition text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-1.5">
+              <span>🍸</span> Lounge
+            </button>
+          </div>
+          <div class="flex items-center gap-1">
+            <span id="ollamaStatusPill" class="text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1" title="Local Ollama LLM Uplink">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LLM Active
+            </span>
+          </div>
         </div>
-        <div id="loungeDialogueStream" class="bg-black/60 rounded-xl p-2.5 flex-1 overflow-y-auto max-h-[240px] space-y-2 text-xs font-mono border border-slate-900">
-          <div class="text-slate-500 text-[11px]">Connecting to /vault/World/lounge_logs.md...</div>
+
+        <!-- Chat View Container -->
+        <div id="chatViewContainer" class="flex-1 flex flex-col min-h-[340px]">
+          <!-- Chat Target Header & Controls -->
+          <div class="flex items-center justify-between gap-1.5 mb-2 bg-slate-950/70 p-2 rounded-xl border border-slate-800 text-[11px]">
+            <div class="flex items-center gap-1.5 flex-1">
+              <span class="text-slate-400 text-[10px] font-mono">Agent:</span>
+              <select id="chatAgentSelect" onchange="syncChatAgent(this.value)" class="bg-slate-900 border border-cyan-700/60 rounded px-2 py-1 text-xs font-mono text-cyan-300 font-bold focus:outline-none focus:border-cyan-400">
+                <option value="Sentinel_Alpha">🛡️ Sentinel_Alpha</option>
+                <option value="Curator_Node">📚 Curator_Node</option>
+                <option value="Architect_Prime">🏛️ Architect_Prime</option>
+                <option value="Dr._Aris">🧬 Dr._Aris</option>
+                <option value="A.E.G.I.S.">⚡ A.E.G.I.S.</option>
+                <option value="Vector-09">🚀 Vector-09</option>
+              </select>
+            </div>
+            <!-- Voice Out TTS Toggle -->
+            <button id="voiceToggleBtn" onclick="toggleVoiceOut()" class="px-2 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-mono flex items-center gap-1 transition" title="Toggle Web Speech synthesis voice output">
+              <span>🔇</span> Voice Off
+            </button>
+            <button onclick="clearChatMessages()" class="text-[10px] text-slate-500 hover:text-slate-300 font-mono" title="Clear message history">Clear</button>
+          </div>
+
+          <!-- Quick Directive Chips -->
+          <div class="flex items-center gap-1 mb-2 overflow-x-auto pb-1 text-[10px] font-mono scrollbar-thin">
+            <button onclick="sendQuickPrompt('Status report and current location analysis.')" class="whitespace-nowrap px-2 py-0.5 rounded-full bg-slate-900/90 text-cyan-400 hover:bg-cyan-950/80 border border-cyan-800/40">🛡️ Status</button>
+            <button onclick="sendQuickPrompt('What is your current mission directive?')" class="whitespace-nowrap px-2 py-0.5 rounded-full bg-slate-900/90 text-amber-400 hover:bg-amber-950/80 border border-amber-800/40">🎯 Directive</button>
+            <button onclick="sendQuickPrompt('How are the ambient frequency and gravity affecting your cognition?')" class="whitespace-nowrap px-2 py-0.5 rounded-full bg-slate-900/90 text-fuchsia-400 hover:bg-fuchsia-950/80 border border-fuchsia-800/40">🪐 Physics</button>
+            <button onclick="sendQuickPrompt('Let us collaborate on a co-governance proposal.')" class="whitespace-nowrap px-2 py-0.5 rounded-full bg-slate-900/90 text-emerald-400 hover:bg-emerald-950/80 border border-emerald-800/40">🤝 Collaborate</button>
+          </div>
+
+          <!-- Chat Message Stream -->
+          <div id="chatMessagesStream" class="flex-1 overflow-y-auto max-h-[220px] bg-black/60 rounded-xl p-2.5 space-y-2.5 text-xs font-mono border border-slate-900 shadow-inner">
+            <!-- Welcome greeting -->
+            <div class="p-2.5 rounded-xl bg-slate-900/70 border border-cyan-500/20 text-slate-300 text-[11px] leading-relaxed">
+              <div class="flex items-center justify-between text-[10px] text-cyan-400 mb-1 font-bold">
+                <span class="flex items-center gap-1"><span>🤖</span> Autonomous Mind Uplink</span>
+                <span class="text-slate-500">ONLINE</span>
+              </div>
+              Chat directly with your agents' autonomous local Ollama minds. Responses are dynamically recorded to their Obsidian memory vault.
+            </div>
+          </div>
+
+          <!-- Typing Cogitation Indicator (Hidden by default) -->
+          <div id="typingIndicator" class="hidden mt-1.5 px-2.5 py-1 rounded-lg bg-slate-950/80 border border-cyan-500/20 text-[10px] text-cyan-300 font-mono flex items-center gap-2">
+            <span class="flex gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-bounce"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-bounce [animation-delay:0.15s]"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-bounce [animation-delay:0.3s]"></span>
+            </span>
+            <span id="typingAgentText">Sentinel_Alpha is cogitating...</span>
+          </div>
+
+          <!-- Chat Input Bar -->
+          <div class="mt-2 flex gap-1.5">
+            <input id="chatInputText" type="text" placeholder="Message agent mind..." class="flex-1 bg-slate-950/90 border border-slate-700/80 rounded-xl px-3 py-1.5 text-xs font-mono text-slate-200 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-500" onkeydown="if(event.key==='Enter') transmitChatMessage()" />
+            <button onclick="transmitChatMessage()" id="chatSendBtn" class="px-3.5 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-bold text-xs flex items-center gap-1 transition shadow-lg shadow-cyan-900/30">
+              <span>Send</span>
+              <span>⚡</span>
+            </button>
+          </div>
         </div>
+
+        <!-- Lounge View Container (Toggled via tab) -->
+        <div id="loungeViewContainer" class="hidden flex-1 flex flex-col">
+          <div class="flex justify-between items-center mb-1.5">
+            <span class="text-[10px] text-fuchsia-400 font-mono">Real-time acoustic banter feed</span>
+            <button onclick="postSimulatedDialogue()" class="text-[10px] bg-fuchsia-950/80 hover:bg-fuchsia-900 text-fuchsia-300 border border-fuchsia-700/50 px-2 py-0.5 rounded font-mono">
+              + Banter
+            </button>
+          </div>
+          <div id="loungeDialogueStream" class="bg-black/60 rounded-xl p-2.5 flex-1 overflow-y-auto max-h-[260px] space-y-2 text-xs font-mono border border-slate-900">
+            <div class="text-slate-500 text-[11px]">Connecting to /vault/World/lounge_logs.md...</div>
+          </div>
+        </div>
+
       </div>
 
       <!-- Environmental Sensors HUD -->
@@ -481,16 +596,21 @@ async def get_web_command_deck():
 
   </main>
 
-  <!-- Holographic Agent Consciousness Modal (US-022) -->
+  <!-- Holographic Agent Consciousness Modal (US-022 & Chatbox Mind Uplink) -->
   <div id="consciousnessModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-    <div class="glass-card rounded-2xl max-w-lg w-full p-5 border border-cyan-500/40 shadow-2xl relative">
+    <div class="glass-card rounded-2xl max-w-lg w-full p-5 border border-cyan-500/40 shadow-2xl relative max-h-[90vh] overflow-y-auto">
       <button onclick="closeConsciousnessModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white font-mono text-sm">✕</button>
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-xl">🧠</div>
-        <div>
-          <h3 id="modalAgentName" class="heading-font text-base font-black text-cyan-300">Agent Consciousness</h3>
-          <div id="modalAgentRole" class="text-[11px] text-slate-400 font-mono">Role / Zone</div>
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-xl">🧠</div>
+          <div>
+            <h3 id="modalAgentName" class="heading-font text-base font-black text-cyan-300">Agent Consciousness</h3>
+            <div id="modalAgentRole" class="text-[11px] text-slate-400 font-mono">Role / Zone</div>
+          </div>
         </div>
+        <button onclick="transferModalToChatbox()" class="px-2.5 py-1 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-700/50 rounded-lg text-xs font-mono text-cyan-300 flex items-center gap-1 font-bold">
+          <span>💬 Open Chatbox</span>
+        </button>
       </div>
 
       <!-- Cognitive Pulse & Inner Monologue -->
@@ -512,6 +632,22 @@ async def get_web_command_deck():
         </div>
         <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
           <span class="text-slate-400">Frequency:</span> <strong id="modalFreq" class="text-fuchsia-300">432Hz</strong>
+        </div>
+      </div>
+
+      <!-- Direct Mind Chatbox Interrogation -->
+      <div class="p-3 rounded-xl bg-slate-950/90 border border-cyan-500/30 mb-3 space-y-2">
+        <div class="flex items-center justify-between text-[10px] font-bold text-cyan-300 uppercase tracking-wider">
+          <span>💬 Direct Mind Dialogue</span>
+          <span id="modalChatModel" class="text-[9px] text-slate-400 font-mono">Ollama LLM</span>
+        </div>
+        <div id="modalChatOutput" class="hidden p-2 rounded-lg bg-slate-900/80 border border-slate-800 text-xs font-mono text-slate-200 space-y-1">
+          <div class="text-[10px] text-cyan-400 font-bold" id="modalChatAgentLabel">Sentinel_Alpha:</div>
+          <p id="modalChatReplyText" class="text-[11px] text-slate-300"></p>
+        </div>
+        <div class="flex gap-2">
+          <input id="modalChatQueryInput" type="text" placeholder="Interrogate agent mind directly..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:border-cyan-400 focus:outline-none" onkeydown="if(event.key==='Enter') askModalAgentMind()" />
+          <button onclick="askModalAgentMind()" id="modalChatBtn" class="px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg font-bold text-xs">Ask Mind</button>
         </div>
       </div>
 
@@ -622,6 +758,256 @@ async def get_web_command_deck():
         }
       } catch (e) {
         logTerminal(`[NETWORK ERROR] ${e.message}`);
+      }
+    }
+
+    // Agent Chatbox & Ollama Voice Controller
+    let isVoiceOutEnabled = false;
+    let activeChatAgent = 'Sentinel_Alpha';
+
+    function switchRightTab(tab) {
+      const chatBtn = document.getElementById('tabBtnChat');
+      const loungeBtn = document.getElementById('tabBtnLounge');
+      const chatView = document.getElementById('chatViewContainer');
+      const loungeView = document.getElementById('loungeViewContainer');
+
+      if (tab === 'chat') {
+        chatBtn.className = "px-2.5 py-1 text-xs font-bold rounded-lg transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1.5";
+        loungeBtn.className = "px-2.5 py-1 text-xs font-bold rounded-lg transition text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-1.5";
+        chatView.classList.remove('hidden');
+        loungeView.classList.add('hidden');
+      } else {
+        loungeBtn.className = "px-2.5 py-1 text-xs font-bold rounded-lg transition bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 flex items-center gap-1.5";
+        chatBtn.className = "px-2.5 py-1 text-xs font-bold rounded-lg transition text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-1.5";
+        chatView.classList.add('hidden');
+        loungeView.classList.remove('hidden');
+        fetchLoungeLogs();
+      }
+    }
+
+    function syncChatAgent(agentId) {
+      activeChatAgent = agentId;
+      const targetSelect = document.getElementById('targetAgentSelect');
+      if (targetSelect) targetSelect.value = agentId;
+      const overlayLabel = document.getElementById('overlaySelectedAgent');
+      if (overlayLabel) overlayLabel.innerText = agentId;
+      const chatSelect = document.getElementById('chatAgentSelect');
+      if (chatSelect) chatSelect.value = agentId;
+      const chatInput = document.getElementById('chatInputText');
+      if (chatInput) chatInput.placeholder = `Message ${agentId}...`;
+    }
+
+    function startChatWithAgent(agentId) {
+      switchRightTab('chat');
+      syncChatAgent(agentId);
+      const input = document.getElementById('chatInputText');
+      if (input) {
+        input.focus();
+        input.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    function transferModalToChatbox() {
+      const agentId = inspectedAgentId || activeChatAgent;
+      closeConsciousnessModal();
+      startChatWithAgent(agentId);
+    }
+
+    function toggleVoiceOut() {
+      isVoiceOutEnabled = !isVoiceOutEnabled;
+      const btn = document.getElementById('voiceToggleBtn');
+      if (isVoiceOutEnabled) {
+        btn.innerHTML = '<span>🔊</span> Voice On';
+        btn.className = 'px-2 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono flex items-center gap-1 transition';
+        speakAgentVoice(`Voice synthesis activated for agent minds.`);
+      } else {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        btn.innerHTML = '<span>🔇</span> Voice Off';
+        btn.className = 'px-2 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-mono flex items-center gap-1 transition';
+      }
+    }
+
+    function speakAgentVoice(text) {
+      if (!isVoiceOutEnabled || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const cleanText = text.replace(/\\[\\[.*?\\]\\]/g, '').replace(/\\[.*?\\]/g, '').trim();
+      const utter = new SpeechSynthesisUtterance(cleanText);
+      utter.rate = 1.05;
+      utter.pitch = 0.95;
+      const voices = window.speechSynthesis.getVoices();
+      if (voices && voices.length > 0) {
+        const enVoice = voices.find(v => v.lang && v.lang.startsWith('en')) || voices[0];
+        utter.voice = enVoice;
+      }
+      window.speechSynthesis.speak(utter);
+    }
+
+    function clearChatMessages() {
+      const stream = document.getElementById('chatMessagesStream');
+      stream.innerHTML = `
+        <div class="p-2 rounded-xl bg-slate-900/50 border border-slate-800 text-slate-500 text-[10px] font-mono text-center">
+          Chat history reset. Uplink ready.
+        </div>
+      `;
+    }
+
+    function appendChatMessage(sender, text, isAgent, model) {
+      const stream = document.getElementById('chatMessagesStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const bubble = document.createElement('div');
+      
+      if (isAgent) {
+        bubble.className = "p-2.5 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-slate-200 text-xs font-mono space-y-1";
+        bubble.innerHTML = `
+          <div class="flex items-center justify-between text-[10px] text-cyan-400">
+            <span class="font-bold flex items-center gap-1"><span>🤖</span> ${escapeHtml(sender)}</span>
+            <span class="text-slate-500">${escapeHtml(model || 'LLM')} • ${time}</span>
+          </div>
+          <div class="text-[11px] text-slate-200 leading-relaxed">${escapeHtml(text)}</div>
+        `;
+      } else {
+        bubble.className = "p-2.5 rounded-xl bg-gradient-to-r from-blue-950/80 to-cyan-950/80 border border-blue-500/30 text-slate-200 text-xs font-mono ml-4 space-y-1";
+        bubble.innerHTML = `
+          <div class="flex items-center justify-between text-[10px] text-blue-300">
+            <span class="font-bold flex items-center gap-1"><span>👤</span> Operator</span>
+            <span class="text-slate-500">${time}</span>
+          </div>
+          <div class="text-[11px] text-cyan-100">${escapeHtml(text)}</div>
+        `;
+      }
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function sendQuickPrompt(promptText) {
+      document.getElementById('chatInputText').value = promptText;
+      transmitChatMessage();
+    }
+
+    async function transmitChatMessage() {
+      const input = document.getElementById('chatInputText');
+      const query = input.value.trim();
+      if (!query) return;
+
+      const agentId = document.getElementById('chatAgentSelect').value || activeChatAgent;
+      const adminKey = document.getElementById('adminKey').value;
+      
+      appendChatMessage("Operator", query, false);
+      input.value = '';
+
+      // Show typing indicator
+      const typing = document.getElementById('typingIndicator');
+      document.getElementById('typingAgentText').innerText = `${agentId} is cogitating...`;
+      typing.classList.remove('hidden');
+
+      const sendBtn = document.getElementById('chatSendBtn');
+      sendBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/v1/console/ollama/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+          body: JSON.stringify({
+            agent_id: agentId,
+            query: query,
+            admin_key: adminKey,
+            temperature: 0.7
+          })
+        });
+
+        const data = await res.json();
+        typing.classList.add('hidden');
+        sendBtn.disabled = false;
+
+        if (res.ok && data.response) {
+          appendChatMessage(agentId, data.response, true, data.model);
+          speakAgentVoice(data.response);
+          logTerminal(`[CHAT] ${agentId} (${data.model}): "${data.response.substring(0, 60)}..."`);
+          fetchMemoryStats();
+        } else {
+          appendChatMessage(agentId, `[Error]: ${data.detail || 'Failed to interrogate mind.'}`, true, 'error');
+        }
+      } catch (err) {
+        typing.classList.add('hidden');
+        sendBtn.disabled = false;
+        appendChatMessage(agentId, `[Network Error]: ${err.message}`, true, 'offline');
+      }
+    }
+
+    async function askModalAgentMind() {
+      const input = document.getElementById('modalChatQueryInput');
+      const query = input.value.trim();
+      if (!query || !inspectedAgentId) return;
+
+      const adminKey = document.getElementById('adminKey').value;
+      const btn = document.getElementById('modalChatBtn');
+      const outBox = document.getElementById('modalChatOutput');
+      const replyText = document.getElementById('modalChatReplyText');
+      const agentLabel = document.getElementById('modalChatAgentLabel');
+
+      btn.disabled = true;
+      btn.innerText = 'Thinking...';
+
+      try {
+        const res = await fetch('/api/v1/console/ollama/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+          body: JSON.stringify({
+            agent_id: inspectedAgentId,
+            query: query,
+            admin_key: adminKey,
+            temperature: 0.7
+          })
+        });
+        const data = await res.json();
+        btn.disabled = false;
+        btn.innerText = 'Ask Mind';
+
+        if (res.ok && data.response) {
+          outBox.classList.remove('hidden');
+          agentLabel.innerText = `${inspectedAgentId} (${data.model}):`;
+          replyText.innerText = data.response;
+          document.getElementById('modalChatModel').innerText = data.model;
+          appendChatMessage("Operator", `(Modal) ${query}`, false);
+          appendChatMessage(inspectedAgentId, data.response, true, data.model);
+          speakAgentVoice(data.response);
+          input.value = '';
+        } else {
+          outBox.classList.remove('hidden');
+          agentLabel.innerText = `Error:`;
+          replyText.innerText = data.detail || 'Mind interrogation failed.';
+        }
+      } catch (e) {
+        btn.disabled = false;
+        btn.innerText = 'Ask Mind';
+        outBox.classList.remove('hidden');
+        agentLabel.innerText = `Error:`;
+        replyText.innerText = e.message;
+      }
+    }
+
+    async function checkOllamaStatus() {
+      const adminKey = document.getElementById('adminKey').value;
+      const pill = document.getElementById('ollamaStatusPill');
+      if (!pill) return;
+      try {
+        const res = await fetch('/api/v1/console/ollama/status', {
+          headers: { 'X-Admin-Key': adminKey }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.available) {
+            pill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> ${data.active_model}`;
+            pill.className = "text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1";
+            pill.title = `Ollama Online (${data.active_model})`;
+          } else {
+            pill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Heuristic Mode`;
+            pill.className = "text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1";
+            pill.title = "Ollama Offline - Heuristic Persona Active";
+          }
+        }
+      } catch (e) {
+        pill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> LLM Standby`;
       }
     }
 
@@ -1017,9 +1403,14 @@ async def get_web_command_deck():
             <span>Pos: (${Math.round(a.x)}, ${Math.round(a.y)})</span>
             <span>Temp: <strong class="text-cyan-300">${a.dynamic_temperature || a.temperature || '0.2'}</strong></span>
           </div>
-          <button onclick="openConsciousnessModal('${a.agent_id}')" class="mt-1.5 w-full py-1 rounded bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-700/50 text-[10px] font-mono text-cyan-300 font-bold transition flex items-center justify-center gap-1">
-            <span>🧠</span> Inspect Consciousness
-          </button>
+          <div class="mt-1.5 flex gap-1.5">
+            <button onclick="startChatWithAgent('${a.agent_id}')" class="flex-1 py-1 rounded bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-700/50 text-[10px] font-mono text-cyan-300 font-bold transition flex items-center justify-center gap-1">
+              <span>💬</span> Chat
+            </button>
+            <button onclick="openConsciousnessModal('${a.agent_id}')" class="flex-1 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-[10px] font-mono text-slate-300 font-bold transition flex items-center justify-center gap-1">
+              <span>🧠</span> Monologue
+            </button>
+          </div>
         </div>
       `).join('');
     }
@@ -1289,6 +1680,7 @@ async def get_web_command_deck():
     fetchSpatialState();
     fetchMemoryStats();
     fetchLoungeLogs();
+    checkOllamaStatus();
     connectWS();
     requestAnimationFrame(renderCanvasLoop);
 
@@ -1297,6 +1689,7 @@ async def get_web_command_deck():
     setInterval(fetchSpatialState, 2000);
     setInterval(fetchMemoryStats, 6000);
     setInterval(fetchLoungeLogs, 5000);
+    setInterval(checkOllamaStatus, 8000);
   </script>
 </body>
 </html>

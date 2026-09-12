@@ -133,5 +133,53 @@ def test_api_ollama_status_and_c2_ask():
         json={"agent_id": "Sentinel_Alpha", "query": "Status report", "temperature": 0.0},
         headers={"X-Admin-Key": ADMIN_KEY}
     )
-    # If Ollama is online, returns 200; if offline, returns 503
-    assert direct_res.status_code in (200, 503)
+    assert direct_res.status_code == 200
+    direct_data = direct_res.json()
+    assert direct_data["success"] is True
+    assert direct_data["agent_id"] == "Sentinel_Alpha"
+    assert "response" in direct_data
+
+
+def test_agent_chatbox_body_key_and_memory():
+    client = TestClient(app)
+
+    # Ask via body admin_key without header
+    res = client.post(
+        "/api/v1/console/ollama/ask",
+        json={
+            "agent_id": "Curator_Node",
+            "query": "Review the latest memory consolidation status.",
+            "admin_key": ADMIN_KEY,
+            "temperature": 0.5
+        }
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["success"] is True
+    assert data["agent_id"] == "Curator_Node"
+    assert "response" in data
+    assert len(data["response"]) > 0
+
+    # Verify memory was persisted in vault
+    mem_dir = os.path.join("vault", "Agents", "Curator_Node", "memories")
+    assert os.path.exists(mem_dir)
+    mem_files = [f for f in os.listdir(mem_dir) if f.startswith("mem_chat_") and f.endswith(".md")]
+    assert len(mem_files) > 0
+
+
+def test_deck_html_contains_chatbox_elements():
+    client = TestClient(app)
+    res = client.get("/api/v1/console/deck")
+    assert res.status_code == 200
+    html = res.text
+
+    # Verify essential Chatbox elements
+    assert "tabBtnChat" in html
+    assert "chatMessagesStream" in html
+    assert "chatInputText" in html
+    assert "chatSendBtn" in html
+    assert "typingIndicator" in html
+    assert "voiceToggleBtn" in html
+    assert "modalChatQueryInput" in html
+    assert "startChatWithAgent" in html
+    assert "checkOllamaStatus" in html
