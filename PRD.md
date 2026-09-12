@@ -61,3 +61,25 @@ The Autonomous AI Open-World Ecosystem is a self-bootstrapping, resilient, and o
 ### Pillar 6: Dev Loop & Cloudflare Zero-Trust
 - Autonomous `Architect_Prime` self-healing code test-and-patch loop.
 - Production containerization (Docker) and Cloudflare Tunnel integration.
+
+---
+
+## 3. Phase 5 Roadmap: Cognitive Minds, Autonomous Evolution & Omnichannel C2
+
+### Pillar 7: Living Agent Cognitive Minds (The Westworld Simulation)
+- **Local Ollama / Soup Zero LLM Mind Hook**: Connect agent tick loops directly to local models (`llama3.2`, `qwen2.5-coder`) via AST-firewalled token proxy.
+- **Cognitive Situational Perception**: Continuous perceptual prompts factoring spatial coordinates, zone temperatures (Work Plaza: 0.25 vs Frequency Lounge: 1.7), and active audio frequencies (432Hz meditative, 528Hz creative expansion, 40Hz focus).
+- **Autonomous Inter-Agent Dialogue & Negotiation**: Proximity triggers dynamic LLM conversations, contract negotiations, ledger credit transfers, and collaborative bounty execution.
+
+### Pillar 8: Autonomous Self-Evolution & Self-Commits
+- **Architect_Prime Engineering Loop**: Agents autonomously detect ecosystem optimization opportunities, author pytest test cases, draft implementations, and verify regression-free code.
+- **Autonomous Git Commits**: Automated staging and commit creation with verified test runs against `origin main`.
+
+### Pillar 9: Interactive Cyberpunk Canvas & Holographic C2
+- **Dynamic 2D/3D Particle & Grid Canvas**: Real-time avatar movement, audio wave visualization, and zone boundaries in the C2 Command Deck.
+- **Agent Consciousness Inspector**: Modal showing live agent internal monologue, memory graph wikilinks, ledger balances, and direct operator voice/text injection.
+
+### Pillar 10: Omnichannel Mobile Telegram C2 & Obsidian Neural Graph
+- **Bidirectional Telegram C2 Webhook**: Live mobile command interface (`/status`, `/freq`, `/teleport`, `/bounties`, `/broadcast`) mapped to the Cloudflare Zero-Trust tunnel.
+- **Obsidian Dynamic Knowledge Graph**: Automatic markdown synthesis of inter-agent debates, memory networks, and daily briefings.
+

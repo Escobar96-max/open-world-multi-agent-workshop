@@ -1,7 +1,8 @@
 {
   "project": "AgentWorld",
-  "branchName": "ralph/phase-4-autonomous-devloop-cloudflare-tunnel",
-  "description": "Autonomous Dev Loop, Cloudflare Zero-Trust Tunnel & Production Launch",
+  "branchName": "ralph/phase-5-cognitive-minds-autonomous-evolution",
+  "description": "Living Cognitive LLM Minds, Autonomous Evolution, Cyberpunk Visualizer & Mobile C2",
+
   "userStories": [
     {
       "id": "US-001",
@@ -271,6 +272,96 @@
       "priority": 18,
       "passes": true,
       "notes": "55/55 tests passing across all 12 test suites in 4.16s."
+    },
+    {
+      "id": "US-019",
+      "title": "Living Agent Cognitive Minds & Local LLM Decision Loop",
+      "description": "Hook agent decision cycles in sim_engine to local Ollama or Soup Zero models via the secure AST proxy.",
+      "acceptanceCriteria": [
+        "SimEngine triggers cognitive decision tick for active agents using local LLM inference",
+        "Prompt contextualizes agent coordinates, active zone temperature, and audio frequency state",
+        "Agent generates situational intentions (movement, dialogue, memory creation)",
+        "Records agent inner monologue to /vault/Agents/{agent_id}/profile.md",
+        "Unit tests pass"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": "Phase 5 Roadmap: Connects agent tick loops directly to local Ollama models via AST-firewalled token proxy."
+    },
+    {
+      "id": "US-020",
+      "title": "Inter-Agent Dynamic Dialogue & Ledger Contract Negotiation",
+      "description": "Trigger dynamic conversational dialogue when agents meet in proximity, allowing ledger credit transfers and collaborative bounties.",
+      "acceptanceCriteria": [
+        "Detects proximity encounter and generates multi-turn dialogue between agent LLM personas",
+        "Enables agents to offer and accept economic transfers via /api/v1/ledger/transfer",
+        "Logs dialogue with wikilinks to /vault/World/lounge_logs.md and agent memories",
+        "Prevents repetitive spam dialogues through debouncing",
+        "Unit tests pass"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": "Phase 5 Roadmap: Multi-agent dynamic LLM conversation and economic contract negotiation."
+    },
+    {
+      "id": "US-021",
+      "title": "Architect_Prime Autonomous Feature Authoring & Git Commits",
+      "description": "Empower Architect_Prime to identify ecosystem optimizations, author test cases, draft implementations, and commit verified changes.",
+      "acceptanceCriteria": [
+        "Autonomous task generation identifies optimization or enhancement opportunities",
+        "Generates new pytest test specifications and code implementations",
+        "Validates that all existing master test suites pass without regression",
+        "Stages and creates git commits with structured commit messages",
+        "Unit tests pass"
+      ],
+      "priority": 21,
+      "passes": false,
+      "notes": "Phase 5 Roadmap: Autonomous self-evolution and auto-commit loop."
+    },
+    {
+      "id": "US-022",
+      "title": "Interactive Cyberpunk 2D/3D Canvas Visualizer for C2 Deck",
+      "description": "Render dynamic visual canvas with moving agent avatars, zone heatmaps, and holographic consciousness modal on /api/v1/console/deck.",
+      "acceptanceCriteria": [
+        "Canvas visualizes agent avatar coordinates and real-time movement paths",
+        "Visualizes active audio frequency waveforms (432Hz, 528Hz, 40Hz) and ambient zone boundaries",
+        "Clicking an agent opens modal displaying real-time thoughts, memories, and ledger balances",
+        "Includes direct operator message injection interface",
+        "Unit tests pass"
+      ],
+      "priority": 22,
+      "passes": false,
+      "notes": "Phase 5 Roadmap: Dynamic animated cyberpunk canvas and agent consciousness inspector."
+    },
+    {
+      "id": "US-023",
+      "title": "Bidirectional Telegram Mobile C2 Webhook Integration",
+      "description": "Connect Telegram bot webhook to live Cloudflare Zero-Trust edge URL for omnichannel mobile C2 monitoring and alerts.",
+      "acceptanceCriteria": [
+        "Telegram webhook processes /status, /freq, /teleport, and /broadcast commands",
+        "Dispatches push alerts to operator Telegram ID on critical anomalies or bounty completions",
+        "Enforces operator Telegram user ID authentication",
+        "Integrates with live Cloudflare edge endpoint",
+        "Unit tests pass"
+      ],
+      "priority": 23,
+      "passes": false,
+      "notes": "Phase 5 Roadmap: Omnichannel mobile operator bridge via live Cloudflare Tunnel webhook."
+    },
+    {
+      "id": "US-024",
+      "title": "Real-Time Obsidian Neural Graph & Dataview Vault Integration",
+      "description": "Automate Obsidian Dataview metadata tagging, semantic memory graphs, and daily briefings across the vault.",
+      "acceptanceCriteria": [
+        "All agent memories and logs include standardized YAML frontmatter and Dataview inline fields",
+        "Generates /vault/World/daily_briefings.md aggregating multi-agent activity per world day",
+        "Enables Obsidian interactive graph view linking all agents, concepts, and transactions",
+        "Maintains zero-leak path traversal security",
+        "Unit tests pass"
+      ],
+      "priority": 24,
+      "passes": false,
+      "notes": "Phase 5 Roadmap: Real-time Obsidian neural graph with automated Dataview aggregation."
     }
   ]
 }
