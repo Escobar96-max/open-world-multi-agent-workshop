@@ -1,0 +1,12 @@
+{
+  "whisper_id": "wsp_1789182551_be5ef1e8",
+  "sender_id": "Sentinel_Alpha",
+  "recipient_id": "Curator_Node",
+  "sender_did": "did:agent:ed25519:1b127cfe90c22465",
+  "recipient_did": "did:agent:ed25519:e81ab79e1e0507a8",
+  "ciphertext_b64": "JZHUgPFVTZp3obd40ewHUswM+DG03MpW+8O5mSiCcYH9KGydWYlDbqf0Qc2p8GIXC8ytvSsPIjMh6R9A2n0J",
+  "nonce_b64": "lcj5GtSdrwmYqS5h",
+  "signature": "509d15568c75915e6be94962ad494861e60fc43269fe1ab87a27b1a58e46f55294e0243b73d67e6fb02adade78600928c89243ee4c0ef5335652cf96c5ec0905",
+  "received_at": 1789182551.286221,
+  "status": "UNREAD"
+}

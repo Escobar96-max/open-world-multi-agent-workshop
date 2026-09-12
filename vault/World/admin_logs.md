@@ -191,3 +191,11 @@ immutable_append_only: true
 | 2026-09-12T02:07:06.511612+00:00 | Operator_Console | `/freq 528` | N/A | SUCCESS |
 | 2026-09-12T02:07:06.513662+00:00 | Operator_Console | `/step` | N/A | SUCCESS |
 | 2026-09-12T02:18:30.202562+00:00 | Operator_Console | `/ask Sentinel_Alpha What is your primary directive?` | Sentinel_Alpha | SUCCESS |
+| 2026-09-12T03:08:59.494208+00:00 | Operator_Console | `/teleport Sentinel_Alpha 65.5 75.0` | Sentinel_Alpha | SUCCESS |
+| 2026-09-12T03:08:59.518500+00:00 | Operator_Console | `/train Curator_Node Python AST & Graph Traversal Optimizations` | Curator_Node | SUCCESS |
+| 2026-09-12T03:08:59.527970+00:00 | Operator_Console | `Elevate perimeter vigilance and immediately log all unverified network beacons.` | Sentinel_Alpha | SUCCESS |
+| 2026-09-12T03:09:02.140623+00:00 | Operator_Console | `/ask Sentinel_Alpha What is your primary directive?` | Sentinel_Alpha | SUCCESS |
+| 2026-09-12T03:09:23.122801+00:00 | Operator_Console | `/gravity 0.0g` | N/A | SUCCESS |
+| 2026-09-12T03:09:23.124977+00:00 | Operator_Console | `/weather storm` | N/A | SUCCESS |
+| 2026-09-12T03:09:23.127058+00:00 | Operator_Console | `/freq 528` | N/A | SUCCESS |
+| 2026-09-12T03:09:23.129139+00:00 | Operator_Console | `/step` | N/A | SUCCESS |

@@ -36,6 +36,7 @@ from api.bounty_router import router as bounty_router
 from api.governance_router import router as governance_router
 from api.telegram_router import router as telegram_router
 from api.devloop_router import router as devloop_router
+from api.network_router import router as network_router
 from services.vault_manager import VaultManager
 from sim_engine import GravitonWorld
 
@@ -135,6 +136,7 @@ app.include_router(bounty_router)
 app.include_router(governance_router)
 app.include_router(telegram_router)
 app.include_router(devloop_router)
+app.include_router(network_router)
 
 @app.get("/api/v1/status")
 @app.get("/api/status")

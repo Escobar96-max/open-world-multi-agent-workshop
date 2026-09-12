@@ -490,11 +490,14 @@ async def get_web_command_deck():
         <!-- Tab Switcher -->
         <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
           <div class="flex items-center gap-1">
-            <button id="tabBtnChat" onclick="switchRightTab('chat')" class="px-2.5 py-1 text-xs font-bold rounded-lg transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1.5">
-              <span>💬</span> Chatbox
+            <button id="tabBtnChat" onclick="switchRightTab('chat')" class="px-2 py-1 text-[11px] font-bold rounded-lg transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1">
+              <span>💬</span> Chat
             </button>
-            <button id="tabBtnLounge" onclick="switchRightTab('lounge')" class="px-2.5 py-1 text-xs font-bold rounded-lg transition text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-1.5">
+            <button id="tabBtnLounge" onclick="switchRightTab('lounge')" class="px-2 py-1 text-[11px] font-bold rounded-lg transition text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-1">
               <span>🍸</span> Lounge
+            </button>
+            <button id="tabBtnMesh" onclick="switchRightTab('mesh')" class="px-2 py-1 text-[11px] font-bold rounded-lg transition text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-1">
+              <span>🌐</span> P2P Mesh
             </button>
           </div>
           <div class="flex items-center gap-1">
@@ -576,6 +579,68 @@ async def get_web_command_deck():
           </div>
           <div id="loungeDialogueStream" class="bg-black/60 rounded-xl p-2.5 flex-1 overflow-y-auto max-h-[260px] space-y-2 text-xs font-mono border border-slate-900">
             <div class="text-slate-500 text-[11px]">Connecting to /vault/World/lounge_logs.md...</div>
+          </div>
+        </div>
+
+        <!-- P2P Mesh & Sovereign Privacy View Container -->
+        <div id="meshViewContainer" class="hidden flex-1 flex flex-col min-h-[340px] text-xs font-mono space-y-2">
+          <!-- Genesis Node Telemetry Banner -->
+          <div class="p-2.5 rounded-xl bg-slate-950/80 border border-emerald-500/30 flex justify-between items-center text-[11px]">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <div>
+                <span class="text-emerald-300 font-bold">Genesis Seed Node (Seed-0)</span>
+                <div class="text-[9px] text-slate-400">Open-World Sovereign Network Root</div>
+              </div>
+            </div>
+            <span id="meshPeersBadge" class="px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-700/50 text-[10px] font-bold">0 Peers</span>
+          </div>
+
+          <!-- Peer Registry List -->
+          <div class="space-y-1">
+            <div class="flex justify-between items-center text-[10px] text-slate-400 uppercase font-bold">
+              <span>Connected Mesh Peers</span>
+              <button onclick="registerSamplePeer()" class="text-cyan-400 hover:text-cyan-200 text-[9px]">+ Add Remote Peer</button>
+            </div>
+            <div id="meshPeersList" class="p-2 rounded-xl bg-black/60 border border-slate-900 max-h-[80px] overflow-y-auto space-y-1 text-[10px]">
+              <div class="text-slate-500">Awaiting peer connections... Ready to seed.</div>
+            </div>
+          </div>
+
+          <!-- Sovereign Agent DIDs & Enclave Status -->
+          <div class="space-y-1">
+            <div class="text-[10px] text-slate-400 uppercase font-bold flex justify-between items-center">
+              <span>Sovereign Agent DIDs</span>
+              <span class="text-[9px] text-emerald-400">🛡️ Ed25519 Enclave</span>
+            </div>
+            <div id="meshAgentDids" class="p-2 rounded-xl bg-black/60 border border-slate-900 max-h-[80px] overflow-y-auto space-y-1 text-[10px]">
+              <div class="text-slate-400">Loading sovereign agent DIDs...</div>
+            </div>
+          </div>
+
+          <!-- End-to-End Encrypted (E2EE) Whisper Transmitter -->
+          <div class="p-2.5 rounded-xl bg-slate-950/90 border border-fuchsia-500/30 space-y-1.5">
+            <div class="flex justify-between items-center text-[10px] font-bold text-fuchsia-300 uppercase">
+              <span>🔐 Transmit E2EE Whisper</span>
+              <span class="text-[9px] text-slate-500">X25519-ECDH</span>
+            </div>
+            <div class="flex gap-1.5 text-[10px]">
+              <select id="whisperSenderSelect" class="bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-slate-200">
+                <option value="Sentinel_Alpha">From: Sentinel_Alpha</option>
+                <option value="Curator_Node">From: Curator_Node</option>
+              </select>
+              <select id="whisperRecipientSelect" class="bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-slate-200">
+                <option value="Curator_Node">To: Curator_Node</option>
+                <option value="Sentinel_Alpha">To: Sentinel_Alpha</option>
+              </select>
+            </div>
+            <div class="flex gap-1.5">
+              <input id="whisperInput" type="text" placeholder="Confidential cipher transmission..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-fuchsia-400" onkeydown="if(event.key==='Enter') sendEncryptedWhisperDirect()" />
+              <button onclick="sendEncryptedWhisperDirect()" class="px-2.5 py-1 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-lg font-bold text-xs">
+                Encrypt & Send
+              </button>
+            </div>
+            <div id="whisperDeliveryStatus" class="hidden text-[10px] text-emerald-400 font-mono"></div>
           </div>
         </div>
 
@@ -768,20 +833,135 @@ async def get_web_command_deck():
     function switchRightTab(tab) {
       const chatBtn = document.getElementById('tabBtnChat');
       const loungeBtn = document.getElementById('tabBtnLounge');
+      const meshBtn = document.getElementById('tabBtnMesh');
       const chatView = document.getElementById('chatViewContainer');
       const loungeView = document.getElementById('loungeViewContainer');
+      const meshView = document.getElementById('meshViewContainer');
+
+      [chatBtn, loungeBtn, meshBtn].forEach(b => {
+        if (b) b.className = "px-2 py-1 text-[11px] font-bold rounded-lg transition text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-1";
+      });
+      [chatView, loungeView, meshView].forEach(v => {
+        if (v) v.classList.add('hidden');
+      });
 
       if (tab === 'chat') {
-        chatBtn.className = "px-2.5 py-1 text-xs font-bold rounded-lg transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1.5";
-        loungeBtn.className = "px-2.5 py-1 text-xs font-bold rounded-lg transition text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-1.5";
+        chatBtn.className = "px-2 py-1 text-[11px] font-bold rounded-lg transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1";
         chatView.classList.remove('hidden');
-        loungeView.classList.add('hidden');
-      } else {
-        loungeBtn.className = "px-2.5 py-1 text-xs font-bold rounded-lg transition bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 flex items-center gap-1.5";
-        chatBtn.className = "px-2.5 py-1 text-xs font-bold rounded-lg transition text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-1.5";
-        chatView.classList.add('hidden');
+      } else if (tab === 'lounge') {
+        loungeBtn.className = "px-2 py-1 text-[11px] font-bold rounded-lg transition bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 flex items-center gap-1";
         loungeView.classList.remove('hidden');
         fetchLoungeLogs();
+      } else if (tab === 'mesh') {
+        meshBtn.className = "px-2 py-1 text-[11px] font-bold rounded-lg transition bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1";
+        meshView.classList.remove('hidden');
+        fetchMeshStatus();
+        fetchAgentDids();
+      }
+    }
+
+    async function fetchMeshStatus() {
+      try {
+        const res = await fetch('/api/v1/network/status');
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('meshPeersBadge').innerText = `${data.active_peers_count} Peers`;
+          const list = document.getElementById('meshPeersList');
+          if (data.peers && data.peers.length > 0) {
+            list.innerHTML = data.peers.map(p => `
+              <div class="flex justify-between items-center text-slate-300">
+                <span class="text-emerald-400 font-bold">${escapeHtml(p.peer_id)}</span>
+                <span class="text-slate-500">${escapeHtml(p.role)} • ONLINE</span>
+              </div>
+            `).join('');
+          } else {
+            list.innerHTML = `<div class="text-slate-500 text-[10px]">Genesis Seed ready. Awaiting remote peer handshakes.</div>`;
+          }
+        }
+      } catch (e) {
+        console.error("Mesh status error:", e);
+      }
+    }
+
+    async function fetchAgentDids() {
+      try {
+        const res = await fetch('/api/v1/network/agents/directory');
+        if (res.ok) {
+          const data = await res.json();
+          const box = document.getElementById('meshAgentDids');
+          box.innerHTML = data.agents.map(a => `
+            <div class="flex justify-between items-center text-slate-300">
+              <span class="text-cyan-400 font-bold">${escapeHtml(a.agent_id)}</span>
+              <span class="text-slate-400 text-[9px] font-mono">${escapeHtml(a.did)}</span>
+            </div>
+          `).join('');
+        }
+      } catch (e) {
+        console.error("DIDs fetch error:", e);
+      }
+    }
+
+    async function sendEncryptedWhisperDirect() {
+      const sender = document.getElementById('whisperSenderSelect').value;
+      const recipient = document.getElementById('whisperRecipientSelect').value;
+      const input = document.getElementById('whisperInput');
+      const msg = input.value.trim();
+      const adminKey = document.getElementById('adminKey').value;
+      if (!msg) return;
+
+      logTerminal(`[P2P E2EE] Encrypting whisper [[${sender}]] -> [[${recipient}]] (X25519)`);
+
+      try {
+        const res = await fetch('/api/v1/network/whisper', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+          body: JSON.stringify({
+            sender_id: sender,
+            recipient_id: recipient,
+            message: msg,
+            admin_key: adminKey
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          input.value = '';
+          const statusBox = document.getElementById('whisperDeliveryStatus');
+          statusBox.classList.remove('hidden');
+          statusBox.innerText = `Ciphertext transmitted: ${data.ciphertext_preview} (ID: ${data.whisper_id})`;
+          setTimeout(() => statusBox.classList.add('hidden'), 5000);
+          logTerminal(`[WHISPER DELIVERED] E2EE packet safely stored in ${recipient} enclave.`);
+        } else {
+          logTerminal(`[WHISPER ERROR] ${escapeHtml(data.detail || JSON.stringify(data))}`);
+        }
+      } catch (err) {
+        logTerminal(`[WHISPER NETWORK ERROR] ${escapeHtml(err.message)}`);
+      }
+    }
+
+    async function registerSamplePeer() {
+      const peerId = `worker_node_${Math.floor(Math.random()*9000 + 1000)}`;
+      logTerminal(`[P2P HANDSHAKE] Registering peer node handshake: ${peerId}...`);
+      try {
+        const res = await fetch('/api/v1/network/peers/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            peer_id: peerId,
+            endpoint_url: `https://${peerId}.agentmesh.internal:8000`,
+            role: "WORKER",
+            agent_ids: ["Vector-09", "A.E.G.I.S."],
+            metadata: { cpu_cores: 4, ram_gb: 16 }
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          logTerminal(`[PEER SYNC 200] Peer ${peerId} bootstrapped into Genesis Seed mesh.`);
+          fetchMeshStatus();
+        } else {
+          logTerminal(`[PEER ERROR] ${escapeHtml(data.detail || JSON.stringify(data))}`);
+        }
+      } catch (e) {
+        logTerminal(`[PEER ERROR] ${escapeHtml(e.message)}`);
       }
     }
 
