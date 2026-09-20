@@ -12,6 +12,7 @@ import pytest
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND_DIR))
 
+import httpx
 from app.services.vault_manager import VaultManager, VaultSecurityError
 from app.services.vlone_driver import VloneDriver
 
@@ -63,10 +64,26 @@ def test_vault_lounge_log_stream(tmp_path):
 @pytest.mark.asyncio
 async def test_vlone_driver_perception_and_interaction(tmp_path):
     driver = VloneDriver(sessions_dir=tmp_path / "sessions")
-    test_url = "https://httpbin.org/forms/post"
+    test_url = "https://local-test.agentworld/form"
 
-    # 1. Open page
-    res = await driver.open_page(url=test_url, session_id="test_exec_01")
+    sample_html = """
+    <html>
+        <head><title>Mocked Order Form</title></head>
+        <body>
+            <h1>Customer Intake</h1>
+            <form action="/submit" method="post">
+                <input type="text" name="customer_name" placeholder="Enter full name" />
+                <button type="submit">Submit Order</button>
+            </form>
+        </body>
+    </html>
+    """
+
+    mock_transport = httpx.MockTransport(lambda request: httpx.Response(200, text=sample_html))
+    driver._http_client = httpx.AsyncClient(transport=mock_transport)
+
+    # 1. Open page (using in-process soup for deterministic offline test)
+    res = await driver.open_page(url=test_url, session_id="test_exec_01", use_playwright=False)
     assert res["session_id"] == "test_exec_01"
     assert "markdown" in res
     assert "elements" in res

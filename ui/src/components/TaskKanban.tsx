@@ -23,7 +23,7 @@ export const TaskKanban: React.FC<TaskKanbanProps> = ({ refreshTrigger }) => {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://127.0.0.1:8000/api/v1/c2/tasks');
+      const res = await fetch('/api/v1/c2/tasks');
       if (res.ok) {
         const data = await res.json();
         // Combine categorized tasks into single list
@@ -47,7 +47,7 @@ export const TaskKanban: React.FC<TaskKanbanProps> = ({ refreshTrigger }) => {
 
   const handleApprove = async (taskId: string) => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/c2/tasks/approve', {
+      const res = await fetch('/api/v1/c2/tasks/approve', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

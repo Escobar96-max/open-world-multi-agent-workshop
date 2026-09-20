@@ -30,7 +30,7 @@ export const SpatialGrid: React.FC = () => {
 
   const fetchState = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/spatial/state');
+      const res = await fetch('/api/v1/spatial/state');
       if (res.ok) {
         const data = await res.json();
         setSpatialState(data);
@@ -51,7 +51,7 @@ export const SpatialGrid: React.FC = () => {
 
   const handleTeleport = async (agentId: string, targetZone: 'plaza' | 'lounge') => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/spatial/teleport', {
+      const res = await fetch('/api/v1/spatial/teleport', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -69,7 +69,7 @@ export const SpatialGrid: React.FC = () => {
 
   const handleMove = async (agentId: string, x: number, y: number) => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/spatial/move', {
+      const res = await fetch('/api/v1/spatial/move', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -88,7 +88,7 @@ export const SpatialGrid: React.FC = () => {
 
   const handleFrequencyChange = async (freq: number) => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/spatial/frequency', {
+      const res = await fetch('/api/v1/spatial/frequency', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ frequency: freq })
@@ -104,7 +104,7 @@ export const SpatialGrid: React.FC = () => {
 
   const handleTick = async () => {
     try {
-      await fetch('http://127.0.0.1:8000/api/v1/spatial/tick', {
+      await fetch('/api/v1/spatial/tick', {
         method: 'POST'
       });
       fetchState();

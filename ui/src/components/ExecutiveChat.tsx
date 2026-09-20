@@ -57,7 +57,7 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
   useEffect(() => {
     const fetchGroupMessages = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/v1/c2/groups');
+        const res = await fetch('/api/v1/c2/groups');
         if (res.ok) {
           const data = await res.json();
           const msgs = (data.groups && data.groups[selectedGroup]) || [];
@@ -83,7 +83,7 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
     setLoading(true);
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/c2/duo-chat', {
+      const res = await fetch('/api/v1/c2/duo-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: query, operator: 'Boss' })
@@ -94,6 +94,7 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
         setMessages(prev => [...prev, data]);
         if (onTaskCreated) onTaskCreated();
       } else {
+        const errorData = await res.json().catch(() => ({}));
         setMessages(prev => [
           ...prev,
           {
@@ -101,13 +102,13 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
             timestamp: new Date().toLocaleTimeString(),
             prompt: query,
             operator: 'Boss',
-            orion_response: '👑 **Orion Prime**: "Arey Boss, backend theke chotto ekta hiccup esche! But kono pera nei, ami sub-agents der retry korte bolchi!"',
-            nova_response: '🌸 **Nova**: "Boss! ⚠️ Connection timed out, ami 100% truthfully janachhi! Port 8000 online achhe kina ekbar check kore dekhun! (｡•́︿•̀｡)"',
+            orion_response: `⚠️ **Orion Prime**: "Arey Boss, backend ektu attke geche (Status: ${res.status}). Chinta korben na, ami logs check korsi!"`,
+            nova_response: `🌸 **Nova**: "Error detail: ${errorData.detail || res.statusText}. Please verify the server connection, Boss! (｡•́︿•̀｡)"`,
             tasks: []
           }
         ]);
       }
-    } catch (err) {
+    } catch (err: any) {
       setMessages(prev => [
         ...prev,
         {
@@ -115,8 +116,8 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
           timestamp: new Date().toLocaleTimeString(),
           prompt: query,
           operator: 'Boss',
-          orion_response: '👑 **Orion Prime**: "No stress Boss! Backend daemon connect hocche, ek second er moddhe retry korchi!"',
-          nova_response: '🌸 **Nova**: "Hii Boss! Local FastAPI daemon (port 8000) not responding yet. Nova is standing by! ✨"',
+          orion_response: `⚠️ **Orion Prime**: "Boss, network connection issue: ${err.message}. Server running achhe kina check korun!"`,
+          nova_response: '🌸 **Nova**: "Backend unreachable. Ensure FastAPI is running on http://127.0.0.1:8000! UwU"',
           tasks: []
         }
       ]);
@@ -131,7 +132,7 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
     setGroupInput('');
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/c2/group-chat', {
+      const res = await fetch('/api/v1/c2/group-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ group_id: selectedGroup, sender: 'Operator', text })
@@ -139,12 +140,18 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
       if (res.ok) {
         const data = await res.json();
         setGroupMessages(prev => [...prev, data.entry]);
+      } else {
+        setGroupInput(text);
+        setGroupMessages(prev => [
+          ...prev,
+          { id: String(Date.now()), sender: 'System', text: `Failed to send message: HTTP ${res.status}`, timestamp: new Date().toLocaleTimeString() }
+        ]);
       }
     } catch (e) {
-      // Local fallback
+      setGroupInput(text);
       setGroupMessages(prev => [
         ...prev,
-        { id: String(Date.now()), sender: 'Operator', text, timestamp: new Date().toLocaleTimeString() }
+        { id: String(Date.now()), sender: 'System', text: 'Network error sending group message.', timestamp: new Date().toLocaleTimeString() }
       ]);
     }
   };

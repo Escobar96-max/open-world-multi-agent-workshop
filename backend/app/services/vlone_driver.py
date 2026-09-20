@@ -52,6 +52,8 @@ class VloneDriver:
         return self._http_client
 
     def _get_session_cookie_path(self, session_id: str) -> Path:
+        if not re.match(r"^[a-zA-Z0-9_-]{1,64}$", session_id):
+            raise ValueError(f"Invalid session_id '{session_id}'. Must contain only alphanumeric, dash, or underscore characters.")
         return self.sessions_dir / f"{session_id}_cookies.json"
 
     def save_session_cookies(self, session_id: str, cookies: List[Dict[str, Any]]) -> None:
@@ -67,7 +69,7 @@ class VloneDriver:
                 return []
         return []
 
-    async def open_page(self, url: str, session_id: str = "default") -> Dict[str, Any]:
+    async def open_page(self, url: str, session_id: str = "default", use_playwright: bool = True) -> Dict[str, Any]:
         """
         Navigates to URL, strips visual bloat, stamps data-vlone-id on interactive nodes,
         and produces semantic token-reduced markdown.
@@ -75,53 +77,54 @@ class VloneDriver:
         logger.info(f"🌐 [Vlone] Navigating to {url} (session: {session_id})")
 
         raw_html = ""
-        # 1. Attempt Playwright Chromium navigation if playwright is available
-        use_playwright = False
-        try:
-            from playwright.async_api import async_playwright
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                context = await browser.new_context(
-                    viewport={"width": 1280, "height": 800},
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) VLONE-Headless/3.0"
-                )
-                # Load saved cookies if any
-                saved_cookies = self.load_session_cookies(session_id)
-                if saved_cookies:
-                    await context.add_cookies(saved_cookies)
+        # 1. Attempt Playwright Chromium navigation if requested and available
+        playwright_success = False
+        if use_playwright:
+            try:
+                from playwright.async_api import async_playwright
+                async with async_playwright() as p:
+                    browser = await p.chromium.launch(headless=True)
+                    context = await browser.new_context(
+                        viewport={"width": 1280, "height": 800},
+                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) VLONE-Headless/3.0"
+                    )
+                    # Load saved cookies if any
+                    saved_cookies = self.load_session_cookies(session_id)
+                    if saved_cookies:
+                        await context.add_cookies(saved_cookies)
 
-                page = await context.new_page()
+                    page = await context.new_page()
 
-                # Sniff background APIs
-                captured_requests: List[Dict[str, Any]] = []
+                    # Sniff background APIs
+                    captured_requests: List[Dict[str, Any]] = []
 
-                def on_request(req):
-                    if req.resource_type in ["fetch", "xhr"]:
-                        captured_requests.append({
-                            "method": req.method,
-                            "url": req.url,
-                            "headers": req.headers
-                        })
+                    def on_request(req):
+                        if req.resource_type in ["fetch", "xhr"]:
+                            captured_requests.append({
+                                "method": req.method,
+                                "url": req.url,
+                                "headers": req.headers
+                            })
 
-                page.on("request", on_request)
+                    page.on("request", on_request)
 
-                # Abort media, fonts, images to optimize speed
-                await page.route(
-                    "**/*",
-                    lambda route: route.abort() if route.request.resource_type in ["image", "media", "font", "stylesheet"] else route.continue_()
-                )
+                    # Abort media, fonts, images to optimize speed
+                    await page.route(
+                        "**/*",
+                        lambda route: route.abort() if route.request.resource_type in ["image", "media", "font", "stylesheet"] else route.continue_()
+                    )
 
-                await page.goto(url, timeout=12000, wait_until="domcontentloaded")
-                raw_html = await page.content()
+                    await page.goto(url, timeout=12000, wait_until="domcontentloaded")
+                    raw_html = await page.content()
 
-                # Persist updated cookies
-                cookies = await context.cookies()
-                self.save_session_cookies(session_id, cookies)
-                await browser.close()
-                use_playwright = True
-                self._sniffed_apis[session_id] = captured_requests
-        except Exception as e:
-            logger.info(f"[Vlone] Playwright unavailable or timed out ({e}). Executing fast HTTP/BeautifulSoup perception engine.")
+                    # Persist updated cookies
+                    cookies = await context.cookies()
+                    self.save_session_cookies(session_id, cookies)
+                    await browser.close()
+                    playwright_success = True
+                    self._sniffed_apis[session_id] = captured_requests
+            except Exception as e:
+                logger.info(f"[Vlone] Playwright unavailable or timed out ({e}). Executing fast HTTP/BeautifulSoup perception engine.")
 
         # 2. Fallback to direct HTTP fetch if Playwright did not run
         if not raw_html:
@@ -150,7 +153,7 @@ class VloneDriver:
             "token_estimate": parsed["token_estimate"],
             "raw_tokens_estimate": parsed["raw_tokens_estimate"],
             "reduction_pct": parsed["reduction_pct"],
-            "engine": "playwright" if use_playwright else "in-process-soup"
+            "engine": "playwright" if playwright_success else "in-process-soup"
         }
         self._active_sessions[session_id] = session_state
         return session_state
@@ -158,6 +161,7 @@ class VloneDriver:
     def _clean_and_catalog_dom(self, raw_html: str, url: str) -> Dict[str, Any]:
         """BeautifulSoup DOM token reducer and numbered element cataloger."""
         soup = BeautifulSoup(raw_html, "html.parser")
+        page_title = soup.title.get_text().strip() if soup.title else f"VLONE Semantic: {url}"
 
         # Strip comment nodes
         for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
@@ -166,8 +170,6 @@ class VloneDriver:
         # Decompose non-content bloat tags
         for tag in soup.find_all(STRIP_TAGS):
             tag.decompose()
-
-        page_title = soup.title.get_text().strip() if soup.title else f"VLONE Semantic: {url}"
 
         catalog: List[Dict[str, Any]] = []
         counter = 0
@@ -240,12 +242,29 @@ class VloneDriver:
         session_id: str = "default"
     ) -> Dict[str, Any]:
         """Executes click or fill action on element identified by vlone_id."""
+        action_lower = action.lower()
+        if action_lower not in ["click", "fill", "type", "hover", "select"]:
+            return {
+                "status": "error",
+                "error": f"Unsupported action '{action}'. Allowed: click, fill, type, hover, select",
+                "action": action,
+                "vlone_id": int(vlone_id)
+            }
+
         session = self._active_sessions.get(session_id, {})
         elements = session.get("elements", [])
         matched = next((e for e in elements if e.get("vlone_id") == int(vlone_id)), None)
 
+        if not matched and elements:
+            return {
+                "status": "not_found",
+                "error": f"Element with data-vlone-id='{vlone_id}' not found in active session catalog.",
+                "action": action,
+                "vlone_id": int(vlone_id)
+            }
+
         if matched:
-            if action.lower() in ["fill", "type"]:
+            if action_lower in ["fill", "type"]:
                 matched["value"] = value
             result_msg = f"Executed '{action}' on element #{vlone_id} ({matched.get('tag')}: '{matched.get('text') or matched.get('name')}') with value='{value}'"
         else:

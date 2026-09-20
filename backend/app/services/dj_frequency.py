@@ -42,13 +42,13 @@ class DJFrequencyNode:
                 "error": f"Unsupported frequency {freq}Hz. Supported: {list(self.FREQUENCIES.keys())}",
                 "current_state": self.get_state()
             }
-        self.current_freq = freq
         info = self.FREQUENCIES[freq]
 
         self.vault.append_lounge_log(
             speaker="DJ_Frequency",
             message=f"Modulated frequency to {freq}Hz ({info['name']}). State: {info['description']}."
         )
+        self.current_freq = freq
         return {"success": True, **self.get_state()}
 
     def set_playback(self, playing: bool) -> Dict[str, Any]:

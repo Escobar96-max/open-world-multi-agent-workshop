@@ -25,7 +25,7 @@ export const VloneConsole: React.FC = () => {
 
   const fetchVloneState = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/vlone/state');
+      const res = await fetch('/api/v1/vlone/state');
       if (res.ok) {
         const data = await res.json();
         setVloneState(data);
@@ -37,7 +37,7 @@ export const VloneConsole: React.FC = () => {
 
   const fetchSniffedApis = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/vlone/sniffed-apis?session_id=default');
+      const res = await fetch('/api/v1/vlone/sniffed-apis?session_id=default');
       if (res.ok) {
         const data = await res.json();
         setSniffedApis(data.apis || []);
@@ -59,7 +59,7 @@ export const VloneConsole: React.FC = () => {
     try {
       setLoading(true);
       setActionLog(`Dispatching VLONE headless scraper to: ${targetUrl}...`);
-      const res = await fetch('http://127.0.0.1:8000/api/v1/vlone/open', {
+      const res = await fetch('/api/v1/vlone/open', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -98,7 +98,7 @@ export const VloneConsole: React.FC = () => {
     try {
       setLoading(true);
       setActionLog(`Executing ${interactAction} on [data-vlone-id="${vloneId}"]...`);
-      const res = await fetch('http://127.0.0.1:8000/api/v1/vlone/interact', {
+      const res = await fetch('/api/v1/vlone/interact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
