@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+env/
+venv/
+*.log
+
+# Pytest
+.pytest_cache/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts
+dist/
+build/
+ui/dist/
+ui/node_modules/
+
+# OS / Sessions
+.DS_Store
+Thumbs.db
+vlone_sessions/
+.idea/
+.vscode/
