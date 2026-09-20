@@ -40,6 +40,7 @@ class VloneDriver:
         self.sessions_dir.mkdir(parents=True, exist_ok=True)
         self._active_sessions: Dict[str, Dict[str, Any]] = {}
         self._sniffed_apis: Dict[str, List[Dict[str, Any]]] = {}
+        self._live_pages: Dict[str, Any] = {}
         self._http_client: Optional[httpx.AsyncClient] = None
         self.engine_status: str = "nominal"
 
@@ -59,6 +60,10 @@ class VloneDriver:
     def save_session_cookies(self, session_id: str, cookies: List[Dict[str, Any]]) -> None:
         p = self._get_session_cookie_path(session_id)
         p.write_text(json.dumps(cookies, indent=2), encoding="utf-8")
+        try:
+            os.chmod(p, 0o600)
+        except (OSError, NotImplementedError):
+            pass
 
     def load_session_cookies(self, session_id: str) -> List[Dict[str, Any]]:
         p = self._get_session_cookie_path(session_id)
@@ -122,6 +127,7 @@ class VloneDriver:
                     self.save_session_cookies(session_id, cookies)
                     await browser.close()
                     playwright_success = True
+                    self.engine_status = "nominal"
                     self._sniffed_apis[session_id] = captured_requests
             except Exception as e:
                 logger.info(f"[Vlone] Playwright unavailable or timed out ({e}). Executing fast HTTP/BeautifulSoup perception engine.")
@@ -255,7 +261,7 @@ class VloneDriver:
         elements = session.get("elements", [])
         matched = next((e for e in elements if e.get("vlone_id") == int(vlone_id)), None)
 
-        if not matched and elements:
+        if not matched:
             return {
                 "status": "not_found",
                 "error": f"Element with data-vlone-id='{vlone_id}' not found in active session catalog.",
@@ -263,12 +269,24 @@ class VloneDriver:
                 "vlone_id": int(vlone_id)
             }
 
-        if matched:
-            if action_lower in ["fill", "type"]:
-                matched["value"] = value
-            result_msg = f"Executed '{action}' on element #{vlone_id} ({matched.get('tag')}: '{matched.get('text') or matched.get('name')}') with value='{value}'"
-        else:
-            result_msg = f"Executed '{action}' on virtual element #{vlone_id}"
+        live_page = self._live_pages.get(session_id)
+        if live_page:
+            try:
+                locator = live_page.locator(f'[data-vlone-id="{vlone_id}"]')
+                if action_lower == "click":
+                    await locator.click(timeout=5000)
+                elif action_lower in ["fill", "type"]:
+                    await locator.fill(value, timeout=5000)
+                elif action_lower == "hover":
+                    await locator.hover(timeout=5000)
+                elif action_lower == "select":
+                    await locator.select_option(value, timeout=5000)
+            except Exception as e:
+                logger.warning(f"Live Playwright action on #{vlone_id} ({e}); updating catalog state.")
+
+        if action_lower in ["fill", "type"]:
+            matched["value"] = value
+        result_msg = f"Executed '{action}' on element #{vlone_id} ({matched.get('tag')}: '{matched.get('text') or matched.get('name')}') with value='{value}'"
 
         return {
             "status": "success",
