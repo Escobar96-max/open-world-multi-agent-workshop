@@ -64,7 +64,7 @@ def test_vault_lounge_log_stream(tmp_path):
 @pytest.mark.asyncio
 async def test_vlone_driver_perception_and_interaction(tmp_path):
     driver = VloneDriver(sessions_dir=tmp_path / "sessions")
-    test_url = "https://local-test.agentworld/form"
+    test_url = "https://8.8.8.8/form"
 
     sample_html = """
     <html>

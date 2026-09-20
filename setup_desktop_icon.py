@@ -52,7 +52,7 @@ Shortcut.IconLocation = "{icon_location}"
 Shortcut.Save
 """
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".vbs", delete=False) as vbs_file:
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-16", suffix=".vbs", delete=False) as vbs_file:
         vbs_file.write(vbs_content)
         vbs_temp_path = vbs_file.name
 

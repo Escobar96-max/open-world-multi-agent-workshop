@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface AgentPosition {
   id: string;
@@ -28,14 +28,19 @@ export const SpatialGrid: React.FC = () => {
   const [targetY, setTargetY] = useState<number>(25);
   const [activeFreq, setActiveFreq] = useState<number>(432);
 
+  const requestIdRef = useRef(0);
+
   const fetchState = async () => {
+    const currentRequestId = ++requestIdRef.current;
     try {
       const res = await fetch('/api/v1/spatial/state');
-      if (res.ok) {
+      if (res.ok && currentRequestId === requestIdRef.current) {
         const data = await res.json();
-        setSpatialState(data);
-        if (data.frequency_state?.frequency_hz) {
-          setActiveFreq(data.frequency_state.frequency_hz);
+        if (currentRequestId === requestIdRef.current) {
+          setSpatialState(data);
+          if (data.frequency_state?.frequency_hz) {
+            setActiveFreq(data.frequency_state.frequency_hz);
+          }
         }
       }
     } catch (err) {

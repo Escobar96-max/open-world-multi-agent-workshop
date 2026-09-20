@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup, Comment
+import httpcore
+from httpcore._backends.auto import AutoBackend
 import httpx
 
 from app.config import settings
@@ -32,8 +34,39 @@ STRIP_TAGS = {
 INTERACTIVE_TAGS = {"a", "button", "input", "select", "textarea"}
 
 
-def validate_url(url: str) -> None:
-    """Hardens URL against SSRF, internal network scanning, and unsafe schemes."""
+class PinnedNetworkBackend(httpcore.AsyncNetworkBackend):
+    """Network backend that connects directly to the pre-validated IP address."""
+
+    def __init__(self, pinned_map: Dict[str, str]):
+        self.pinned_map = pinned_map
+        self.backend = AutoBackend()
+
+    async def connect_tcp(self, host: str, port: int, **kwargs):
+        target = self.pinned_map.get(host, host)
+        return await self.backend.connect_tcp(target, port, **kwargs)
+
+    async def connect_unix_socket(self, *args, **kwargs):
+        return await self.backend.connect_unix_socket(*args, **kwargs)
+
+    async def sleep(self, seconds: float):
+        return await self.backend.sleep(seconds)
+
+
+class PinnedAsyncHTTPTransport(httpx.AsyncHTTPTransport):
+    """Async transport pinning TCP connections to verified safe IP addresses."""
+
+    def __init__(self, pinned_map: Dict[str, str], **kwargs):
+        super().__init__(**kwargs)
+        self.pinned_map = pinned_map
+        self._pool = httpcore.AsyncConnectionPool(network_backend=PinnedNetworkBackend(pinned_map))
+
+
+def validate_url(url: str) -> str:
+    """
+    Hardens URL against SSRF, internal network scanning, and unsafe schemes.
+    Resolves hostname and verifies that all addresses are public and non-privileged.
+    Returns the resolved public IP string.
+    """
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
         raise ValueError(f"Invalid URL scheme '{parsed.scheme}'. Only http and https are allowed.")
@@ -51,16 +84,27 @@ def validate_url(url: str) -> None:
         ip = ipaddress.ip_address(hostname)
         if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
             raise ValueError(f"Access to private IP '{hostname}' is prohibited.")
+        return str(ip)
     except ValueError:
-        try:
-            addr_info = socket.getaddrinfo(hostname, None)
-            for _, _, _, _, sockaddr in addr_info:
-                ip_str = sockaddr[0]
-                ip = ipaddress.ip_address(ip_str)
-                if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
-                    raise ValueError(f"Resolved address '{ip_str}' is private and prohibited.")
-        except socket.gaierror:
-            pass
+        pass
+
+    try:
+        addr_info = socket.getaddrinfo(hostname, None)
+        if not addr_info:
+            raise ValueError(f"Unable to resolve address for host '{hostname}'.")
+        validated_ip = None
+        for _, _, _, _, sockaddr in addr_info:
+            ip_str = sockaddr[0]
+            ip = ipaddress.ip_address(ip_str)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                raise ValueError(f"Resolved address '{ip_str}' is private and prohibited.")
+            if not validated_ip:
+                validated_ip = ip_str
+        if not validated_ip:
+            raise ValueError(f"No valid public address resolved for '{hostname}'.")
+        return validated_ip
+    except socket.gaierror as err:
+        raise ValueError(f"DNS resolution failed for '{hostname}': {err}")
 
 
 class VloneDriver:
@@ -114,12 +158,19 @@ class VloneDriver:
         Navigates to URL, strips visual bloat, stamps data-vlone-id on interactive nodes,
         and produces semantic token-reduced markdown.
         """
-        # Validate caller-controlled target URL before any request
-        validate_url(url)
-        logger.info(f"🌐 [Vlone] Navigating to {url} (session: {session_id})")
+        # Validate caller-controlled target URL and resolve verified safe IP
+        validated_ip = validate_url(url)
+        parsed_target = urlparse(url)
+        target_hostname = parsed_target.hostname or ""
+
+        logger.info(f"🌐 [Vlone] Navigating to {url} [pinned: {validated_ip}] (session: {session_id})")
 
         raw_html = ""
         playwright_success = False
+
+        browser = None
+        context = None
+        page = None
 
         # 1. Attempt Playwright Chromium navigation if requested and available
         if use_playwright:
@@ -138,7 +189,9 @@ class VloneDriver:
                     except Exception:
                         pass
 
-                browser = await self._playwright.chromium.launch(headless=True)
+                # Pin DNS resolution for target host to the validated IP via Chromium network flags
+                playwright_args = [f"--host-resolver-rules=MAP {target_hostname} {validated_ip}"]
+                browser = await self._playwright.chromium.launch(headless=True, args=playwright_args)
                 context = await browser.new_context(
                     viewport={"width": 1280, "height": 800},
                     user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) VLONE-Headless/3.0"
@@ -206,23 +259,49 @@ class VloneDriver:
                 self.engine_status = "nominal"
                 self._sniffed_apis[session_id] = captured_requests
             except Exception as e:
+                if page:
+                    try:
+                        await page.close()
+                    except Exception:
+                        pass
+                if context:
+                    try:
+                        await context.close()
+                    except Exception:
+                        pass
+                if browser:
+                    try:
+                        await browser.close()
+                    except Exception:
+                        pass
                 logger.info(f"[Vlone] Playwright unavailable or failed ({e}). Executing fast HTTP/BeautifulSoup perception engine.")
 
         # 2. Fallback to direct HTTP fetch if Playwright did not run
         if not raw_html:
-            client = await self._get_http_client()
             try:
                 curr_url = url
                 # Validate URL before initial request and revalidate each redirect hop
                 for _ in range(5):
-                    validate_url(curr_url)
-                    resp = await client.get(curr_url, follow_redirects=False, timeout=10.0)
+                    curr_ip = validate_url(curr_url)
+                    curr_host = urlparse(curr_url).hostname or ""
+
+                    if self._http_client is not None:
+                        resp = await self._http_client.get(curr_url, follow_redirects=False)
+                    else:
+                        pinned_transport = PinnedAsyncHTTPTransport({curr_host: curr_ip})
+                        async with httpx.AsyncClient(
+                            transport=pinned_transport,
+                            timeout=10.0,
+                            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VLONE-Semantic/3.0"}
+                        ) as client:
+                            resp = await client.get(curr_url, follow_redirects=False)
+
                     if resp.is_redirect and "location" in resp.headers:
                         from urllib.parse import urljoin
                         curr_url = urljoin(curr_url, resp.headers["location"])
                     else:
+                        raw_html = resp.text
                         break
-                raw_html = resp.text
             except Exception as ex:
                 logger.warning(f"[Vlone] Network fetch error on {url}: {ex}. Using synthetic fallback.")
                 raw_html = f"<html><head><title>Offline: {url}</title></head><body><h1>Target: {url}</h1><p>Offline perception active.</p></body></html>"
