@@ -51,6 +51,10 @@ async def test_executive_duo_directive_processing(duo_instance):
 
 
 def test_c2_executive_router_endpoints(tmp_path):
+    import app.routers.c2_executive as c2_mod
+    isolated_vault = VaultManager(vault_path=tmp_path / "vault")
+    c2_mod._executive_duo = ExecutiveDuo(vault_manager=isolated_vault)
+
     app = FastAPI()
     app.include_router(c2_router)
     client = TestClient(app)

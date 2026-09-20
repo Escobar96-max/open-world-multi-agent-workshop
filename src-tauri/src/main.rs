@@ -2,5 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    println!("Antigravity Unified C2 Desktop initialized.");
+    tauri::Builder::default()
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }

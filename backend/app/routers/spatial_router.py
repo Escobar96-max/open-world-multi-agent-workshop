@@ -83,7 +83,10 @@ def get_frequency_endpoint():
 @router.post("/frequency")
 def set_frequency_endpoint(req: FrequencyRequest):
     dj = get_dj_node()
-    return dj.set_frequency(req.frequency)
+    res = dj.set_frequency(req.frequency)
+    if not res.get("success", True):
+        raise HTTPException(status_code=400, detail=res.get("error"))
+    return res
 
 
 @router.websocket("/ws")

@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
 interface Task {
-  task_id: string;
+  id: string;
   title: string;
-  assigned_to: string;
+  description: string;
+  assignee: string;
   status: 'in_progress' | 'needs_approval' | 'completed';
-  confidence_score: number;
-  output_summary: string;
-  requires_operator_signoff: boolean;
+  priority: number;
+  output_summary?: string | null;
+  verified_by_nova?: boolean;
 }
 
 interface TaskKanbanProps {
@@ -25,7 +26,11 @@ export const TaskKanban: React.FC<TaskKanbanProps> = ({ refreshTrigger }) => {
       const res = await fetch('http://127.0.0.1:8000/api/v1/c2/tasks');
       if (res.ok) {
         const data = await res.json();
-        setTasks(data.tasks || []);
+        // Combine categorized tasks into single list
+        const inProgress = data.in_progress || [];
+        const needsApproval = data.needs_approval || [];
+        const completed = data.completed || [];
+        setTasks([...inProgress, ...needsApproval, ...completed]);
       }
     } catch (err) {
       console.error('Failed to fetch tasks:', err);
@@ -42,16 +47,28 @@ export const TaskKanban: React.FC<TaskKanbanProps> = ({ refreshTrigger }) => {
 
   const handleApprove = async (taskId: string) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/c2/tasks/approve?task_id=${encodeURIComponent(taskId)}`, {
-        method: 'POST'
+      const res = await fetch('http://127.0.0.1:8000/api/v1/c2/tasks/approve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          task_id: taskId,
+          summary: 'Approved and verified by Operator.'
+        })
       });
       if (res.ok) {
         setActionMessage(`Approved task ${taskId} successfully!`);
         setTimeout(() => setActionMessage(null), 3000);
         fetchTasks();
+      } else {
+        setActionMessage(`Approval failed: HTTP ${res.status}`);
+        setTimeout(() => setActionMessage(null), 3000);
       }
     } catch (err) {
       console.error('Error approving task:', err);
+      setActionMessage('Error connecting to server.');
+      setTimeout(() => setActionMessage(null), 3000);
     }
   };
 
@@ -103,11 +120,11 @@ export const TaskKanban: React.FC<TaskKanbanProps> = ({ refreshTrigger }) => {
               <p className="text-xs text-slate-600 italic text-center py-6">No active tasks</p>
             ) : (
               inProgress.map(task => (
-                <div key={task.task_id} className="p-2.5 rounded bg-slate-900/90 border border-slate-800 text-xs space-y-1 hover:border-amber-500/40 transition-colors">
+                <div key={task.id} className="p-2.5 rounded bg-slate-900/90 border border-slate-800 text-xs space-y-1 hover:border-amber-500/40 transition-colors">
                   <div className="font-medium text-slate-200">{task.title}</div>
                   <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">🤖 {task.assigned_to}</span>
-                    <span className="text-amber-400 font-mono">{(task.confidence_score * 100).toFixed(0)}% conf</span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">🤖 {task.assignee}</span>
+                    <span className="text-amber-400 font-mono">Priority: {task.priority}</span>
                   </div>
                   {task.output_summary && (
                     <p className="text-[11px] text-slate-400 bg-slate-950/50 p-1.5 rounded line-clamp-2">
@@ -136,17 +153,17 @@ export const TaskKanban: React.FC<TaskKanbanProps> = ({ refreshTrigger }) => {
               <p className="text-xs text-slate-600 italic text-center py-6">Queue is clean</p>
             ) : (
               needsApproval.map(task => (
-                <div key={task.task_id} className="p-2.5 rounded bg-slate-900/90 border border-rose-900/50 text-xs space-y-2 shadow-md">
+                <div key={task.id} className="p-2.5 rounded bg-slate-900/90 border border-rose-900/50 text-xs space-y-2 shadow-md">
                   <div className="font-semibold text-rose-200">{task.title}</div>
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">👤 {task.assigned_to}</span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">👤 {task.assignee}</span>
                     <span className="text-rose-400 font-mono">Requires Review</span>
                   </div>
                   <p className="text-[11px] text-slate-300 bg-slate-950/70 p-1.5 rounded border border-rose-900/30">
-                    {task.output_summary || 'Task completed pending operator review.'}
+                    {task.output_summary || task.description || 'Task completed pending operator review.'}
                   </p>
                   <button
-                    onClick={() => handleApprove(task.task_id)}
+                    onClick={() => handleApprove(task.id)}
                     className="w-full py-1 rounded bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-medium text-xs shadow-lg transition-all"
                   >
                     ✓ 1-Click Operator Signoff
@@ -173,11 +190,11 @@ export const TaskKanban: React.FC<TaskKanbanProps> = ({ refreshTrigger }) => {
               <p className="text-xs text-slate-600 italic text-center py-6">No completed tasks yet</p>
             ) : (
               completed.map(task => (
-                <div key={task.task_id} className="p-2.5 rounded bg-slate-900/90 border border-slate-800/80 text-xs space-y-1 opacity-80 hover:opacity-100 transition-opacity">
+                <div key={task.id} className="p-2.5 rounded bg-slate-900/90 border border-slate-800/80 text-xs space-y-1 opacity-80 hover:opacity-100 transition-opacity">
                   <div className="font-medium text-slate-300 line-through decoration-emerald-500/60">{task.title}</div>
                   <div className="flex items-center justify-between text-[11px] text-slate-500">
-                    <span>{task.assigned_to}</span>
-                    <span className="text-emerald-400 font-mono">100% synced</span>
+                    <span>{task.assignee}</span>
+                    <span className="text-emerald-400 font-mono">100% verified</span>
                   </div>
                   <div className="text-[10px] text-emerald-500/80 bg-emerald-950/20 px-1.5 py-0.5 rounded border border-emerald-900/30">
                     Obsidian Vault: Synchronized with #operator_directive

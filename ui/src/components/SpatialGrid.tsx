@@ -1,26 +1,31 @@
 import React, { useState, useEffect } from 'react';
 
 interface AgentPosition {
-  agent_id: string;
+  id: string;
+  name: string;
+  role: string;
   x: number;
   y: number;
   zone: string;
   temperature: number;
-  harmonic_state: string;
+  status: string;
 }
 
 interface SpatialState {
-  bounds: { min_x: number; max_x: number; min_y: number; max_y: number };
-  active_frequency: number;
-  frequency_mode: string;
+  grid: { min: number; max: number };
   agents: AgentPosition[];
+  frequency_state?: {
+    frequency_hz: number;
+    name: string;
+    description: string;
+  };
 }
 
 export const SpatialGrid: React.FC = () => {
   const [spatialState, setSpatialState] = useState<SpatialState | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<string>('Orion_Prime');
-  const [teleportX, setTeleportX] = useState<number>(25);
-  const [teleportY, setTeleportY] = useState<number>(25);
+  const [targetX, setTargetX] = useState<number>(25);
+  const [targetY, setTargetY] = useState<number>(25);
   const [activeFreq, setActiveFreq] = useState<number>(432);
 
   const fetchState = async () => {
@@ -29,8 +34,8 @@ export const SpatialGrid: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         setSpatialState(data);
-        if (data.active_frequency) {
-          setActiveFreq(data.active_frequency);
+        if (data.frequency_state?.frequency_hz) {
+          setActiveFreq(data.frequency_state.frequency_hz);
         }
       }
     } catch (err) {
@@ -44,24 +49,54 @@ export const SpatialGrid: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleTeleport = async (agentId: string, x: number, y: number) => {
+  const handleTeleport = async (agentId: string, targetZone: 'plaza' | 'lounge') => {
     try {
-      await fetch(`http://127.0.0.1:8000/api/v1/spatial/teleport?agent_id=${encodeURIComponent(agentId)}&x=${x}&y=${y}`, {
-        method: 'POST'
+      const res = await fetch('http://127.0.0.1:8000/api/v1/spatial/teleport', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: agentId,
+          target: targetZone
+        })
       });
-      fetchState();
+      if (res.ok) {
+        fetchState();
+      }
     } catch (err) {
       console.error('Teleport error:', err);
     }
   };
 
+  const handleMove = async (agentId: string, x: number, y: number) => {
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/v1/spatial/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: agentId,
+          x: x,
+          y: y
+        })
+      });
+      if (res.ok) {
+        fetchState();
+      }
+    } catch (err) {
+      console.error('Move error:', err);
+    }
+  };
+
   const handleFrequencyChange = async (freq: number) => {
     try {
-      await fetch(`http://127.0.0.1:8000/api/v1/spatial/frequency?freq=${freq}`, {
-        method: 'POST'
+      const res = await fetch('http://127.0.0.1:8000/api/v1/spatial/frequency', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frequency: freq })
       });
-      setActiveFreq(freq);
-      fetchState();
+      if (res.ok) {
+        setActiveFreq(freq);
+        fetchState();
+      }
     } catch (err) {
       console.error('Frequency switch error:', err);
     }
@@ -95,9 +130,9 @@ export const SpatialGrid: React.FC = () => {
       case 'Orion_Prime': return '👑';
       case 'Nova': return '🌸';
       case 'Sentinel_Alpha': return '🛡️';
-      case 'Architect_Prime': return '📐';
+      case 'Architect_Prime': return '⚙️';
       case 'Curator_Node': return '📚';
-      case 'DJ_Frequency': return '🎧';
+      case 'DJ_Frequency': return '🎵';
       default: return '🤖';
     }
   };
@@ -115,7 +150,7 @@ export const SpatialGrid: React.FC = () => {
               </span>
             </h2>
             <p className="text-xs text-slate-400">
-              Work Plaza (0-50, Cold Temp 0.2) vs Frequency Lounge (51-100, 432Hz Warm Temp 1.6)
+              Work Plaza (0-50, Cold Temp 0.2) vs Frequency Lounge (51-100, {activeFreq}Hz Warm Temp 1.6)
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -164,33 +199,32 @@ export const SpatialGrid: React.FC = () => {
 
           {/* Agent Dots */}
           {spatialState?.agents.map(agent => {
-            // map [0, 100] to percentage
             const left = `${Math.min(95, Math.max(5, agent.x))}%`;
             const top = `${Math.min(95, Math.max(5, agent.y))}%`;
-            const isSelected = selectedAgent === agent.agent_id;
+            const isSelected = selectedAgent === agent.id;
 
             return (
               <div
-                key={agent.agent_id}
-                onClick={() => setSelectedAgent(agent.agent_id)}
+                key={agent.id}
+                onClick={() => setSelectedAgent(agent.id)}
                 style={{ left, top }}
                 className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-500 group z-10`}
               >
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br ${getAgentColor(agent.agent_id)} border-2 shadow-lg shadow-black/80 hover:scale-125 transition-transform ${isSelected ? 'ring-4 ring-white ring-offset-2 ring-offset-slate-950' : ''}`}>
-                  <span className="text-sm select-none">{getAgentEmoji(agent.agent_id)}</span>
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br ${getAgentColor(agent.id)} border-2 shadow-lg shadow-black/80 hover:scale-125 transition-transform ${isSelected ? 'ring-4 ring-white ring-offset-2 ring-offset-slate-950' : ''}`}>
+                  <span className="text-sm select-none">{getAgentEmoji(agent.id)}</span>
                 </div>
 
-                {/* Hover Badge */}
+                {/* Hover Tooltip */}
                 <div className="absolute left-1/2 -translate-x-1/2 bottom-9 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity bg-slate-900/95 border border-slate-700 px-2 py-1 rounded shadow-xl whitespace-nowrap text-[11px] text-white z-30">
                   <div className="font-bold flex items-center gap-1">
-                    <span>{getAgentEmoji(agent.agent_id)}</span>
-                    <span>{agent.agent_id}</span>
+                    <span>{getAgentEmoji(agent.id)}</span>
+                    <span>{agent.name}</span>
                   </div>
                   <div className="text-[10px] text-slate-400">
-                    Pos: ({agent.x}, {agent.y}) | {agent.zone}
+                    Pos: ({agent.x.toFixed(1)}, {agent.y.toFixed(1)}) | {agent.zone}
                   </div>
                   <div className="text-[10px] text-cyan-400">
-                    Temp: {agent.temperature} | Harmonic: {agent.harmonic_state}
+                    Temp: {agent.temperature} | Status: {agent.status}
                   </div>
                 </div>
               </div>
@@ -213,7 +247,7 @@ export const SpatialGrid: React.FC = () => {
           </div>
 
           <p className="text-[11px] text-slate-400">
-            Harmonic binaural resonance for creative relaxation and lounge sessions.
+            Harmonic resonance for cognitive flow and relaxation.
           </p>
 
           <div className="grid grid-cols-3 gap-1.5">
@@ -226,7 +260,7 @@ export const SpatialGrid: React.FC = () => {
               }`}
             >
               432 Hz
-              <span className="block text-[9px] font-normal opacity-80">Miracle</span>
+              <span className="block text-[8px] font-normal opacity-80 truncate">Restorative Natural Harmonic</span>
             </button>
             <button
               onClick={() => handleFrequencyChange(528)}
@@ -237,7 +271,7 @@ export const SpatialGrid: React.FC = () => {
               }`}
             >
               528 Hz
-              <span className="block text-[9px] font-normal opacity-80">DNA Repair</span>
+              <span className="block text-[8px] font-normal opacity-80 truncate">Solfeggio Transformation</span>
             </button>
             <button
               onClick={() => handleFrequencyChange(40)}
@@ -248,7 +282,7 @@ export const SpatialGrid: React.FC = () => {
               }`}
             >
               40 Hz
-              <span className="block text-[9px] font-normal opacity-80">Gamma Focus</span>
+              <span className="block text-[8px] font-normal opacity-80 truncate">Gamma Focus</span>
             </button>
           </div>
         </div>
@@ -267,8 +301,8 @@ export const SpatialGrid: React.FC = () => {
               className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
             >
               {spatialState?.agents.map(a => (
-                <option key={a.agent_id} value={a.agent_id}>
-                  {getAgentEmoji(a.agent_id)} {a.agent_id} ({a.zone})
+                <option key={a.id} value={a.id}>
+                  {getAgentEmoji(a.id)} {a.name} ({a.zone})
                 </option>
               ))}
             </select>
@@ -276,16 +310,16 @@ export const SpatialGrid: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => handleTeleport(selectedAgent, 25, 25)}
+              onClick={() => handleTeleport(selectedAgent, 'plaza')}
               className="py-1.5 px-2 rounded bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-800/60 text-cyan-300 text-xs font-medium transition-all"
             >
-              🏢 Send to Work Plaza (25, 25)
+              🏢 Send to Plaza
             </button>
             <button
-              onClick={() => handleTeleport(selectedAgent, 75, 75)}
+              onClick={() => handleTeleport(selectedAgent, 'lounge')}
               className="py-1.5 px-2 rounded bg-purple-950/80 hover:bg-purple-900 border border-purple-800/60 text-purple-300 text-xs font-medium transition-all"
             >
-              🎧 Send to Lounge (75, 75)
+              🎧 Send to Lounge
             </button>
           </div>
 
@@ -295,8 +329,8 @@ export const SpatialGrid: React.FC = () => {
                 type="number"
                 min="0"
                 max="100"
-                value={teleportX}
-                onChange={e => setTeleportX(Number(e.target.value))}
+                value={targetX}
+                onChange={e => setTargetX(Number(e.target.value))}
                 placeholder="X (0-100)"
                 className="w-1/2 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
               />
@@ -304,17 +338,17 @@ export const SpatialGrid: React.FC = () => {
                 type="number"
                 min="0"
                 max="100"
-                value={teleportY}
-                onChange={e => setTeleportY(Number(e.target.value))}
+                value={targetY}
+                onChange={e => setTargetY(Number(e.target.value))}
                 placeholder="Y (0-100)"
                 className="w-1/2 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
               />
             </div>
             <button
-              onClick={() => handleTeleport(selectedAgent, teleportX, teleportY)}
+              onClick={() => handleMove(selectedAgent, targetX, targetY)}
               className="w-full py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors"
             >
-              Teleport to Custom Coordinates
+              Move to Exact Coordinates
             </button>
           </div>
         </div>
@@ -323,11 +357,11 @@ export const SpatialGrid: React.FC = () => {
         {selectedAgent && (
           <div className="p-3 bg-slate-950/40 rounded-lg border border-slate-800/60 text-[11px] text-slate-400">
             <span className="font-semibold text-slate-300">Active Selection:</span> {selectedAgent}
-            {spatialState?.agents.find(a => a.agent_id === selectedAgent) && (
+            {spatialState?.agents.find(a => a.id === selectedAgent) && (
               <div className="mt-1 space-y-0.5 font-mono text-[10px] text-slate-400">
-                <div>Zone: <span className="text-cyan-400">{spatialState.agents.find(a => a.agent_id === selectedAgent)?.zone}</span></div>
-                <div>Coords: ({spatialState.agents.find(a => a.agent_id === selectedAgent)?.x}, {spatialState.agents.find(a => a.agent_id === selectedAgent)?.y})</div>
-                <div>Resonance: <span className="text-purple-400">{spatialState.agents.find(a => a.agent_id === selectedAgent)?.harmonic_state}</span></div>
+                <div>Zone: <span className="text-cyan-400">{spatialState.agents.find(a => a.id === selectedAgent)?.zone}</span></div>
+                <div>Coords: ({spatialState.agents.find(a => a.id === selectedAgent)?.x.toFixed(1)}, {spatialState.agents.find(a => a.id === selectedAgent)?.y.toFixed(1)})</div>
+                <div>Role: <span className="text-purple-400">{spatialState.agents.find(a => a.id === selectedAgent)?.role}</span></div>
               </div>
             )}
           </div>

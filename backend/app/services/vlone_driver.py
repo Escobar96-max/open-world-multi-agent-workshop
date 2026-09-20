@@ -41,6 +41,7 @@ class VloneDriver:
         self._active_sessions: Dict[str, Dict[str, Any]] = {}
         self._sniffed_apis: Dict[str, List[Dict[str, Any]]] = {}
         self._http_client: Optional[httpx.AsyncClient] = None
+        self.engine_status: str = "nominal"
 
     async def _get_http_client(self) -> httpx.AsyncClient:
         if self._http_client is None or self._http_client.is_closed:
@@ -132,14 +133,9 @@ class VloneDriver:
                 logger.warning(f"[Vlone] Network fetch error on {url}: {ex}. Using synthetic fallback.")
                 raw_html = f"<html><head><title>Offline: {url}</title></head><body><h1>Target: {url}</h1><p>Offline perception active.</p></body></html>"
 
-            # Synthetic background APIs for inspection
-            self._sniffed_apis[session_id] = [
-                {
-                    "method": "GET",
-                    "url": f"{url.rstrip('/')}/api/v1/telemetry",
-                    "headers": {"Authorization": "Bearer vlone_local_session_sec"}
-                }
-            ]
+            # Fallback path: real interception not available via static fetch
+            self._sniffed_apis[session_id] = []
+            self.engine_status = "degraded"
 
         # 3. Clean DOM and stamp data-vlone-id
         parsed = self._clean_and_catalog_dom(raw_html, url)

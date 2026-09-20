@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 
 interface VloneState {
-  current_url: string;
-  status: string;
-  token_reduction_pct: number;
-  raw_token_estimate: number;
-  clean_token_estimate: number;
-  sniffed_apis_count: number;
+  url: string;
+  is_active: boolean;
+  title: string;
+  elements_count: number;
+  reduction_pct: number;
+  raw_tokens_estimate?: number;
+  token_estimate?: number;
 }
 
 export const VloneConsole: React.FC = () => {
@@ -36,10 +37,10 @@ export const VloneConsole: React.FC = () => {
 
   const fetchSniffedApis = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/vlone/sniffed-apis');
+      const res = await fetch('http://127.0.0.1:8000/api/v1/vlone/sniffed-apis?session_id=default');
       if (res.ok) {
         const data = await res.json();
-        setSniffedApis(data.sniffed_apis || []);
+        setSniffedApis(data.apis || []);
       }
     } catch (err) {
       console.error('Failed to fetch sniffed apis:', err);
@@ -58,24 +59,31 @@ export const VloneConsole: React.FC = () => {
     try {
       setLoading(true);
       setActionLog(`Dispatching VLONE headless scraper to: ${targetUrl}...`);
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/vlone/open?url=${encodeURIComponent(targetUrl)}`, {
-        method: 'POST'
+      const res = await fetch('http://127.0.0.1:8000/api/v1/vlone/open', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: targetUrl,
+          session_id: 'default'
+        })
       });
+
       if (res.ok) {
         const data = await res.json();
-        setCleanContent(data.clean_content || '');
+        setCleanContent(data.markdown || '');
         setVloneState({
-          current_url: data.url,
-          status: 'ready',
-          token_reduction_pct: data.token_reduction_pct,
-          raw_token_estimate: data.raw_tokens,
-          clean_token_estimate: data.clean_tokens,
-          sniffed_apis_count: data.sniffed_apis ? data.sniffed_apis.length : 0
+          url: data.url || targetUrl,
+          is_active: true,
+          title: data.title || targetUrl,
+          elements_count: data.elements_count || 0,
+          reduction_pct: data.reduction_pct || 0,
+          raw_tokens_estimate: data.raw_tokens_estimate || 0,
+          token_estimate: data.token_estimate || 0
         });
-        if (data.sniffed_apis) {
-          setSniffedApis(data.sniffed_apis);
-        }
-        setActionLog(`Success! Page parsed with ${data.token_reduction_pct}% token reduction.`);
+        await fetchSniffedApis();
+        setActionLog(`Success! Page parsed with ${data.reduction_pct}% token reduction.`);
       } else {
         setActionLog(`Failed to open page: ${res.statusText}`);
       }
@@ -90,12 +98,21 @@ export const VloneConsole: React.FC = () => {
     try {
       setLoading(true);
       setActionLog(`Executing ${interactAction} on [data-vlone-id="${vloneId}"]...`);
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/vlone/interact?action=${interactAction}&vlone_id=${vloneId}&value=${encodeURIComponent(interactValue)}`, {
-        method: 'POST'
+      const res = await fetch('http://127.0.0.1:8000/api/v1/vlone/interact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: interactAction,
+          vlone_id: vloneId,
+          value: interactValue,
+          session_id: 'default'
+        })
       });
       if (res.ok) {
         const data = await res.json();
-        setActionLog(`Interaction result: ${JSON.stringify(data.result)}`);
+        setActionLog(`Interaction result: ${JSON.stringify(data.result || data.action)}`);
         fetchVloneState();
       } else {
         setActionLog(`Interaction failed: ${res.statusText}`);
@@ -130,13 +147,13 @@ export const VloneConsole: React.FC = () => {
               <div className="text-right">
                 <div className="text-[10px] text-slate-400 uppercase tracking-wider">Token Efficiency</div>
                 <div className="text-xs font-mono font-bold text-emerald-400">
-                  {vloneState.token_reduction_pct}% reduction
+                  {vloneState.reduction_pct}% reduction
                 </div>
               </div>
               <div className="h-6 w-px bg-slate-800 mx-1"></div>
               <div className="text-[10px] text-slate-400">
-                <div>Raw: <span className="font-mono text-slate-300">{vloneState.raw_token_estimate}</span></div>
-                <div>Clean: <span className="font-mono text-emerald-400">{vloneState.clean_token_estimate}</span></div>
+                <div>Raw: <span className="font-mono text-slate-300">{vloneState.raw_tokens_estimate ?? 0}</span></div>
+                <div>Clean: <span className="font-mono text-emerald-400">{vloneState.token_estimate ?? 0}</span></div>
               </div>
             </div>
           )}

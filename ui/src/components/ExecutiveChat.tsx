@@ -55,6 +55,23 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
   }, []);
 
   useEffect(() => {
+    const fetchGroupMessages = async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:8000/api/v1/c2/groups');
+        if (res.ok) {
+          const data = await res.json();
+          const msgs = (data.groups && data.groups[selectedGroup]) || [];
+          setGroupMessages(msgs);
+        }
+      } catch (err) {
+        console.error('Failed to fetch group messages:', err);
+        setGroupMessages([]);
+      }
+    };
+    fetchGroupMessages();
+  }, [selectedGroup]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, groupMessages]);
 

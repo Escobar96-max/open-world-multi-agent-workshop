@@ -37,7 +37,11 @@ class DJFrequencyNode:
 
     def set_frequency(self, freq: int) -> Dict[str, Any]:
         if freq not in self.FREQUENCIES:
-            freq = 432
+            return {
+                "success": False,
+                "error": f"Unsupported frequency {freq}Hz. Supported: {list(self.FREQUENCIES.keys())}",
+                "current_state": self.get_state()
+            }
         self.current_freq = freq
         info = self.FREQUENCIES[freq]
 
@@ -45,7 +49,7 @@ class DJFrequencyNode:
             speaker="DJ_Frequency",
             message=f"Modulated frequency to {freq}Hz ({info['name']}). State: {info['description']}."
         )
-        return self.get_state()
+        return {"success": True, **self.get_state()}
 
     def set_playback(self, playing: bool) -> Dict[str, Any]:
         self.is_playing = playing

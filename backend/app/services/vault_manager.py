@@ -6,6 +6,7 @@ YAML frontmatter parsing, and bidirectional [[wikilink]] generation.
 
 import os
 import re
+import uuid
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -72,7 +73,8 @@ class VaultManager:
         slug = re.sub(r"[^\w\s-]", "", clean_title).strip().lower()
         slug = re.sub(r"[-\s]+", "_", slug)[:40] or "observation"
 
-        filename = f"{timestamp_slug}_{slug}.md"
+        unique_suffix = uuid.uuid4().hex[:6]
+        filename = f"{timestamp_slug}_{slug}_{unique_suffix}.md"
         file_path = agent_memories_dir / filename
 
         default_tags = ["agent-world", "memory", f"agent-{valid_id.lower()}"]

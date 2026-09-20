@@ -58,7 +58,13 @@ Shortcut.Save
 
     try:
         cmd = ["cscript", "//nologo", vbs_temp_path]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        subprocess.run(cmd, capture_output=True, text=True, check=True)
+    except FileNotFoundError:
+        print("[Error] 'cscript.exe' is not available. This utility requires Windows Script Host.")
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        print(f"[Error] Failed to execute VBScript shortcut creator: {e.stderr or e}")
+        sys.exit(1)
     finally:
         try:
             os.remove(vbs_temp_path)

@@ -4,6 +4,7 @@ Settings for FastAPI daemon, Antigravity Spatial Grid, Obsidian Vault, and VLONE
 """
 
 import os
+import secrets
 from pathlib import Path
 from pydantic import BaseModel
 
@@ -17,7 +18,7 @@ class Settings(BaseModel):
     app_version: str = "3.0.0"
     server_host: str = os.getenv("HOST", "127.0.0.1")
     server_port: int = int(os.getenv("PORT", "8000"))
-    admin_secret_key: str = os.getenv("ADMIN_SECRET_KEY", "op_secret_master_key_9921")
+    admin_secret_key: str = os.getenv("ADMIN_SECRET_KEY") or secrets.token_hex(32)
 
     # Antigravity 2D Spatial World Boundaries
     grid_min: float = 0.0

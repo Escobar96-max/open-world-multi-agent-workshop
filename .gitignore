@@ -30,3 +30,7 @@ Thumbs.db
 vlone_sessions/
 .idea/
 .vscode/
+
+# Vault Runtime Memories
+vault/Agents/*/memories/
+

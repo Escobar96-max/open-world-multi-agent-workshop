@@ -80,6 +80,12 @@ def run_self_test(host: str, port: int) -> bool:
             else:
                 print(f"  [FAIL] React Frontend GUI (/) -> Status {resp.status} (Unexpected content)")
                 return False
+    except urllib.error.HTTPError as he:
+        if he.code == 404:
+            print(f"  [WARN] React Frontend GUI (/) -> HTTP 404 (Static UI bundle not built yet; continuing backend-only)")
+        else:
+            print(f"  [FAIL] React Frontend GUI (/) -> HTTP {he.code}: {he.reason}")
+            return False
     except Exception as e:
         print(f"  [FAIL] React Frontend GUI (/) -> {e}")
         return False

@@ -81,7 +81,12 @@ def test_dj_frequency_harmonics(tmp_path):
     assert "528Hz" in lounge_log.read_text(encoding="utf-8")
 
 
-def test_spatial_router_endpoints():
+def test_spatial_router_endpoints(tmp_path):
+    import app.routers.spatial_router as sp_mod
+    isolated_vault = VaultManager(vault_path=tmp_path / "vault")
+    sp_mod._engine = SpatialEngine(vault_manager=isolated_vault)
+    sp_mod._dj = DJFrequencyNode(vault_manager=isolated_vault)
+
     app = FastAPI()
     app.include_router(spatial_router)
     client = TestClient(app)
