@@ -63,7 +63,6 @@ def test_vault_lounge_log_stream(tmp_path):
 
 @pytest.mark.asyncio
 async def test_vlone_driver_perception_and_interaction(tmp_path):
-    driver = VloneDriver(sessions_dir=tmp_path / "sessions")
     test_url = "https://8.8.8.8/form"
 
     sample_html = """
@@ -80,7 +79,10 @@ async def test_vlone_driver_perception_and_interaction(tmp_path):
     """
 
     mock_transport = httpx.MockTransport(lambda request: httpx.Response(200, text=sample_html))
-    driver._http_client = httpx.AsyncClient(transport=mock_transport)
+    driver = VloneDriver(
+        sessions_dir=tmp_path / "sessions",
+        transport_factory=lambda pinned_map: mock_transport
+    )
 
     # 1. Open page (using in-process soup for deterministic offline test)
     res = await driver.open_page(url=test_url, session_id="test_exec_01", use_playwright=False)

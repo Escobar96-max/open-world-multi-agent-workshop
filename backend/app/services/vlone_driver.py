@@ -80,13 +80,16 @@ def validate_url(url: str) -> str:
     if hostname in blocked_hosts or hostname.endswith(".local") or hostname.endswith(".internal"):
         raise ValueError(f"Access to private/local address '{hostname}' is prohibited.")
 
+    parsed_ip = None
     try:
-        ip = ipaddress.ip_address(hostname)
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
-            raise ValueError(f"Access to private IP '{hostname}' is prohibited.")
-        return str(ip)
+        parsed_ip = ipaddress.ip_address(hostname)
     except ValueError:
         pass
+
+    if parsed_ip is not None:
+        if parsed_ip.is_private or parsed_ip.is_loopback or parsed_ip.is_link_local or parsed_ip.is_reserved or parsed_ip.is_multicast:
+            raise ValueError(f"Access to private IP '{hostname}' is prohibited.")
+        return str(parsed_ip)
 
     try:
         addr_info = socket.getaddrinfo(hostname, None)
@@ -113,23 +116,15 @@ class VloneDriver:
     Extracts clean token-reduced markdown and numbered actionable elements.
     """
 
-    def __init__(self, sessions_dir: Optional[Path] = None):
+    def __init__(self, sessions_dir: Optional[Path] = None, transport_factory: Optional[Any] = None):
         self.sessions_dir = Path(sessions_dir or settings.sessions_path)
         self.sessions_dir.mkdir(parents=True, exist_ok=True)
         self._active_sessions: Dict[str, Dict[str, Any]] = {}
         self._sniffed_apis: Dict[str, List[Dict[str, Any]]] = {}
         self._live_pages: Dict[str, Dict[str, Any]] = {}
         self._playwright: Any = None
-        self._http_client: Optional[httpx.AsyncClient] = None
+        self._transport_factory = transport_factory
         self.engine_status: str = "nominal"
-
-    async def _get_http_client(self) -> httpx.AsyncClient:
-        if self._http_client is None or self._http_client.is_closed:
-            self._http_client = httpx.AsyncClient(
-                timeout=15.0,
-                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VLONE-Semantic/3.0"}
-            )
-        return self._http_client
 
     def _get_session_cookie_path(self, session_id: str) -> Path:
         if not re.match(r"^[a-zA-Z0-9_-]{1,64}$", session_id):
@@ -158,8 +153,19 @@ class VloneDriver:
         Navigates to URL, strips visual bloat, stamps data-vlone-id on interactive nodes,
         and produces semantic token-reduced markdown.
         """
-        # Validate caller-controlled target URL and resolve verified safe IP
-        validated_ip = validate_url(url)
+        dns_cache: Dict[str, str] = {}
+
+        async def validate_url_async(u: str) -> str:
+            parsed = urlparse(u)
+            host = (parsed.hostname or "").lower()
+            if host in dns_cache:
+                return dns_cache[host]
+            ip = await asyncio.to_thread(validate_url, u)
+            dns_cache[host] = ip
+            return ip
+
+        # Validate caller-controlled target URL asynchronously and resolve verified safe IP
+        validated_ip = await validate_url_async(url)
         parsed_target = urlparse(url)
         target_hostname = parsed_target.hostname or ""
 
@@ -216,11 +222,11 @@ class VloneDriver:
 
                 page.on("request", on_request)
 
-                # Harden all outgoing routes against SSRF and filter heavy media bloat
+                # Harden all outgoing routes against SSRF asynchronously and filter heavy media bloat
                 async def handle_route(route):
                     req_url = route.request.url
                     try:
-                        validate_url(req_url)
+                        await validate_url_async(req_url)
                     except Exception:
                         await route.abort()
                         return
@@ -282,19 +288,20 @@ class VloneDriver:
                 curr_url = url
                 # Validate URL before initial request and revalidate each redirect hop
                 for _ in range(5):
-                    curr_ip = validate_url(curr_url)
+                    curr_ip = await validate_url_async(curr_url)
                     curr_host = urlparse(curr_url).hostname or ""
 
-                    if self._http_client is not None:
-                        resp = await self._http_client.get(curr_url, follow_redirects=False)
-                    else:
-                        pinned_transport = PinnedAsyncHTTPTransport({curr_host: curr_ip})
-                        async with httpx.AsyncClient(
-                            transport=pinned_transport,
-                            timeout=10.0,
-                            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VLONE-Semantic/3.0"}
-                        ) as client:
-                            resp = await client.get(curr_url, follow_redirects=False)
+                    pinned_transport = (
+                        self._transport_factory({curr_host: curr_ip})
+                        if self._transport_factory
+                        else PinnedAsyncHTTPTransport({curr_host: curr_ip})
+                    )
+                    async with httpx.AsyncClient(
+                        transport=pinned_transport,
+                        timeout=10.0,
+                        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VLONE-Semantic/3.0"}
+                    ) as client:
+                        resp = await client.get(curr_url, follow_redirects=False)
 
                     if resp.is_redirect and "location" in resp.headers:
                         from urllib.parse import urljoin
@@ -302,7 +309,11 @@ class VloneDriver:
                     else:
                         raw_html = resp.text
                         break
+                else:
+                    raise ValueError(f"Exceeded maximum redirect limit (5) for '{url}'.")
             except Exception as ex:
+                if isinstance(ex, ValueError) and "redirect limit" in str(ex):
+                    raise
                 logger.warning(f"[Vlone] Network fetch error on {url}: {ex}. Using synthetic fallback.")
                 raw_html = f"<html><head><title>Offline: {url}</title></head><body><h1>Target: {url}</h1><p>Offline perception active.</p></body></html>"
 
@@ -342,14 +353,24 @@ class VloneDriver:
             tag.decompose()
 
         catalog: List[Dict[str, Any]] = []
-        counter = 0
-
         actionable = soup.find_all(lambda el: el.name in INTERACTIVE_TAGS or el.get("role") in {"button", "link"})
 
+        # Preserve valid existing data-vlone-id values and advance counter past maximum reused ID
+        max_existing_id = 0
         for el in actionable:
-            counter += 1
-            vid = counter
-            el["data-vlone-id"] = str(vid)
+            existing_id = el.get("data-vlone-id")
+            if existing_id and existing_id.isdigit():
+                max_existing_id = max(max_existing_id, int(existing_id))
+
+        counter = max_existing_id
+        for el in actionable:
+            existing_id = el.get("data-vlone-id")
+            if existing_id and existing_id.isdigit():
+                vid = int(existing_id)
+            else:
+                counter += 1
+                vid = counter
+                el["data-vlone-id"] = str(vid)
 
             tag_name = el.name.lower()
             text = el.get_text(separator=" ", strip=True)
@@ -468,8 +489,24 @@ class VloneDriver:
         if action_lower in ["fill", "type"]:
             matched["value"] = value
 
-        # Sync DOM changes back to active session catalog
+        # Re-run live-page ID stamping so newly created elements receive sequential IDs
         try:
+            await live_page.evaluate("""() => {
+                let maxId = 0;
+                const stamped = document.querySelectorAll('[data-vlone-id]');
+                stamped.forEach(el => {
+                    const n = parseInt(el.getAttribute('data-vlone-id') || '0', 10);
+                    if (!isNaN(n) && n > maxId) maxId = n;
+                });
+                const actionable = document.querySelectorAll('a, button, input, select, textarea, [role="button"], [role="link"]');
+                actionable.forEach(el => {
+                    const cur = el.getAttribute('data-vlone-id');
+                    if (!cur || isNaN(parseInt(cur, 10))) {
+                        maxId++;
+                        el.setAttribute('data-vlone-id', String(maxId));
+                    }
+                });
+            }""")
             raw_html = await live_page.content()
             parsed = self._clean_and_catalog_dom(raw_html, session.get("url", ""))
             session["markdown"] = parsed["markdown"]
@@ -495,7 +532,7 @@ class VloneDriver:
         return self._sniffed_apis.get(session_id, [])
 
     async def close(self):
-        """Closes active Playwright instances and HTTP client connections."""
+        """Closes active Playwright instances and live browser resources."""
         for sess_id, live in list(self._live_pages.items()):
             try:
                 await live["page"].close()
@@ -512,6 +549,3 @@ class VloneDriver:
                 pass
             self._playwright = None
 
-        if self._http_client and not self._http_client.is_closed:
-            await self._http_client.aclose()
-            self._http_client = None
