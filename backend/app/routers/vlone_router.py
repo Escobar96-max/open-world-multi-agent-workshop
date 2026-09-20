@@ -37,8 +37,11 @@ async def open_url_endpoint(req: OpenUrlRequest):
     if not req.url or not req.url.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid target URL. Must start with http/https.")
 
-    res = await driver.open_page(url=req.url, session_id=req.session_id or "default")
-    return res
+    try:
+        res = await driver.open_page(url=req.url, session_id=req.session_id or "default")
+        return res
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/interact")

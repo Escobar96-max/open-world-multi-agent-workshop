@@ -95,18 +95,29 @@ async def test_vlone_driver_perception_and_interaction(tmp_path):
     assert "vlone_id" in first_elem
     assert first_elem["vlone_id"] == 1
 
-    # 2. Interact with element
+    # 2. Interact with element (fallback engine is read-only and reports unsupported)
     action_res = await driver.interact(
         action="fill",
         vlone_id=1,
         value="Acme Global Distribution",
         session_id="test_exec_01"
     )
-    assert action_res["status"] == "success"
+    assert action_res["status"] == "unsupported"
+    assert "Playwright" in action_res["error"]
     assert action_res["vlone_id"] == 1
 
     # 3. Get sniffed APIs
     apis = await driver.get_sniffed_apis(session_id="test_exec_01")
     assert isinstance(apis, list)
+
+    # 4. Verify SSRF protection
+    with pytest.raises(ValueError):
+        await driver.open_page("http://127.0.0.1:8000/secret", session_id="ssrf_test")
+
+    with pytest.raises(ValueError):
+        await driver.open_page("http://user:pass@example.com", session_id="ssrf_test")
+
+    with pytest.raises(ValueError):
+        await driver.open_page("file:///etc/passwd", session_id="ssrf_test")
 
     await driver.close()

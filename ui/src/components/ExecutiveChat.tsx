@@ -55,20 +55,29 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+    const currentGroup = selectedGroup;
     const fetchGroupMessages = async () => {
       try {
-        const res = await fetch('/api/v1/c2/groups');
-        if (res.ok) {
+        const res = await fetch('/api/v1/c2/groups', { signal: controller.signal });
+        if (res.ok && selectedGroup === currentGroup) {
           const data = await res.json();
-          const msgs = (data.groups && data.groups[selectedGroup]) || [];
-          setGroupMessages(msgs);
+          if (selectedGroup === currentGroup) {
+            const msgs = (data.groups && data.groups[currentGroup]) || [];
+            setGroupMessages(msgs);
+          }
         }
-      } catch (err) {
-        console.error('Failed to fetch group messages:', err);
-        setGroupMessages([]);
+      } catch (err: any) {
+        if (err.name !== 'AbortError' && selectedGroup === currentGroup) {
+          console.error('Failed to fetch group messages:', err);
+          setGroupMessages([]);
+        }
       }
     };
     fetchGroupMessages();
+    return () => {
+      controller.abort();
+    };
   }, [selectedGroup]);
 
   useEffect(() => {

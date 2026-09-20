@@ -7,12 +7,15 @@ Includes in-process BeautifulSoup fallback for environments without Playwright b
 """
 
 import asyncio
+import ipaddress
 import json
 import logging
 import os
 import re
+import socket
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 from bs4 import BeautifulSoup, Comment
 import httpx
 
@@ -29,6 +32,37 @@ STRIP_TAGS = {
 INTERACTIVE_TAGS = {"a", "button", "input", "select", "textarea"}
 
 
+def validate_url(url: str) -> None:
+    """Hardens URL against SSRF, internal network scanning, and unsafe schemes."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Invalid URL scheme '{parsed.scheme}'. Only http and https are allowed.")
+    if parsed.username or parsed.password:
+        raise ValueError("URLs containing credentials (username:password) are prohibited.")
+    if not parsed.hostname:
+        raise ValueError("URL must include a valid hostname.")
+
+    hostname = parsed.hostname.lower()
+    blocked_hosts = {"localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.google.internal"}
+    if hostname in blocked_hosts or hostname.endswith(".local") or hostname.endswith(".internal"):
+        raise ValueError(f"Access to private/local address '{hostname}' is prohibited.")
+
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+            raise ValueError(f"Access to private IP '{hostname}' is prohibited.")
+    except ValueError:
+        try:
+            addr_info = socket.getaddrinfo(hostname, None)
+            for _, _, _, _, sockaddr in addr_info:
+                ip_str = sockaddr[0]
+                ip = ipaddress.ip_address(ip_str)
+                if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                    raise ValueError(f"Resolved address '{ip_str}' is private and prohibited.")
+        except socket.gaierror:
+            pass
+
+
 class VloneDriver:
     """
     Headless semantic browser automation engine.
@@ -40,7 +74,8 @@ class VloneDriver:
         self.sessions_dir.mkdir(parents=True, exist_ok=True)
         self._active_sessions: Dict[str, Dict[str, Any]] = {}
         self._sniffed_apis: Dict[str, List[Dict[str, Any]]] = {}
-        self._live_pages: Dict[str, Any] = {}
+        self._live_pages: Dict[str, Dict[str, Any]] = {}
+        self._playwright: Any = None
         self._http_client: Optional[httpx.AsyncClient] = None
         self.engine_status: str = "nominal"
 
@@ -79,64 +114,114 @@ class VloneDriver:
         Navigates to URL, strips visual bloat, stamps data-vlone-id on interactive nodes,
         and produces semantic token-reduced markdown.
         """
+        # Validate caller-controlled target URL before any request
+        validate_url(url)
         logger.info(f"🌐 [Vlone] Navigating to {url} (session: {session_id})")
 
         raw_html = ""
-        # 1. Attempt Playwright Chromium navigation if requested and available
         playwright_success = False
+
+        # 1. Attempt Playwright Chromium navigation if requested and available
         if use_playwright:
             try:
                 from playwright.async_api import async_playwright
-                async with async_playwright() as p:
-                    browser = await p.chromium.launch(headless=True)
-                    context = await browser.new_context(
-                        viewport={"width": 1280, "height": 800},
-                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) VLONE-Headless/3.0"
-                    )
-                    # Load saved cookies if any
-                    saved_cookies = self.load_session_cookies(session_id)
-                    if saved_cookies:
-                        await context.add_cookies(saved_cookies)
+                if self._playwright is None:
+                    self._playwright = await async_playwright().start()
 
-                    page = await context.new_page()
+                # Clean up previous session resources if present
+                old_live = self._live_pages.pop(session_id, None)
+                if old_live:
+                    try:
+                        await old_live["page"].close()
+                        await old_live["context"].close()
+                        await old_live["browser"].close()
+                    except Exception:
+                        pass
 
-                    # Sniff background APIs
-                    captured_requests: List[Dict[str, Any]] = []
+                browser = await self._playwright.chromium.launch(headless=True)
+                context = await browser.new_context(
+                    viewport={"width": 1280, "height": 800},
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) VLONE-Headless/3.0"
+                )
 
-                    def on_request(req):
-                        if req.resource_type in ["fetch", "xhr"]:
-                            captured_requests.append({
-                                "method": req.method,
-                                "url": req.url,
-                                "headers": req.headers
-                            })
+                saved_cookies = self.load_session_cookies(session_id)
+                if saved_cookies:
+                    await context.add_cookies(saved_cookies)
 
-                    page.on("request", on_request)
+                page = await context.new_page()
 
-                    # Abort media, fonts, images to optimize speed
-                    await page.route(
-                        "**/*",
-                        lambda route: route.abort() if route.request.resource_type in ["image", "media", "font", "stylesheet"] else route.continue_()
-                    )
+                # Sniff background APIs
+                captured_requests: List[Dict[str, Any]] = []
 
-                    await page.goto(url, timeout=12000, wait_until="domcontentloaded")
-                    raw_html = await page.content()
+                def on_request(req):
+                    if req.resource_type in ["fetch", "xhr"]:
+                        captured_requests.append({
+                            "method": req.method,
+                            "url": req.url,
+                            "headers": req.headers
+                        })
 
-                    # Persist updated cookies
-                    cookies = await context.cookies()
-                    self.save_session_cookies(session_id, cookies)
-                    await browser.close()
-                    playwright_success = True
-                    self.engine_status = "nominal"
-                    self._sniffed_apis[session_id] = captured_requests
+                page.on("request", on_request)
+
+                # Harden all outgoing routes against SSRF and filter heavy media bloat
+                async def handle_route(route):
+                    req_url = route.request.url
+                    try:
+                        validate_url(req_url)
+                    except Exception:
+                        await route.abort()
+                        return
+                    if route.request.resource_type in ["image", "media", "font", "stylesheet"]:
+                        await route.abort()
+                    else:
+                        await route.continue_()
+
+                await page.route("**/*", handle_route)
+
+                # Navigate to validated URL
+                await page.goto(url, timeout=12000, wait_until="domcontentloaded")
+
+                # Apply data-vlone-id attributes to the live DOM
+                await page.evaluate("""() => {
+                    let id = 0;
+                    const actionable = document.querySelectorAll('a, button, input, select, textarea, [role="button"], [role="link"]');
+                    actionable.forEach(el => {
+                        id++;
+                        el.setAttribute('data-vlone-id', String(id));
+                    });
+                }""")
+
+                raw_html = await page.content()
+
+                # Persist updated cookies
+                cookies = await context.cookies()
+                self.save_session_cookies(session_id, cookies)
+
+                self._live_pages[session_id] = {
+                    "browser": browser,
+                    "context": context,
+                    "page": page
+                }
+                playwright_success = True
+                self.engine_status = "nominal"
+                self._sniffed_apis[session_id] = captured_requests
             except Exception as e:
-                logger.info(f"[Vlone] Playwright unavailable or timed out ({e}). Executing fast HTTP/BeautifulSoup perception engine.")
+                logger.info(f"[Vlone] Playwright unavailable or failed ({e}). Executing fast HTTP/BeautifulSoup perception engine.")
 
         # 2. Fallback to direct HTTP fetch if Playwright did not run
         if not raw_html:
             client = await self._get_http_client()
             try:
-                resp = await client.get(url, timeout=10.0)
+                curr_url = url
+                # Validate URL before initial request and revalidate each redirect hop
+                for _ in range(5):
+                    validate_url(curr_url)
+                    resp = await client.get(curr_url, follow_redirects=False, timeout=10.0)
+                    if resp.is_redirect and "location" in resp.headers:
+                        from urllib.parse import urljoin
+                        curr_url = urljoin(curr_url, resp.headers["location"])
+                    else:
+                        break
                 raw_html = resp.text
             except Exception as ex:
                 logger.warning(f"[Vlone] Network fetch error on {url}: {ex}. Using synthetic fallback.")
@@ -146,7 +231,7 @@ class VloneDriver:
             self._sniffed_apis[session_id] = []
             self.engine_status = "degraded"
 
-        # 3. Clean DOM and stamp data-vlone-id
+        # 3. Clean DOM and catalog interactive elements
         parsed = self._clean_and_catalog_dom(raw_html, url)
 
         session_state = {
@@ -214,6 +299,7 @@ class VloneDriver:
             markdown_lines.append(f"- `[#{item['vlone_id']}: {item['tag'].upper()} \"{label}\"]` (type={item['element_type']}, name=\"{item['name']}\")")
 
         markdown_lines.append("\n## Page Content\n")
+
         for content_tag in soup.find_all(["h1", "h2", "h3", "h4", "p", "li"]):
             txt = content_tag.get_text(strip=True)
             if not txt:
@@ -248,6 +334,18 @@ class VloneDriver:
         session_id: str = "default"
     ) -> Dict[str, Any]:
         """Executes click or fill action on element identified by vlone_id."""
+        session = self._active_sessions.get(session_id, {})
+
+        # Return explicit unsupported status when running on fallback engine
+        if session.get("engine") != "playwright" or session_id not in self._live_pages:
+            return {
+                "status": "unsupported",
+                "error": "Interactive execution requires Playwright browser engine. Fallback engine is read-only.",
+                "action": action,
+                "vlone_id": int(vlone_id),
+                "session_id": session_id
+            }
+
         action_lower = action.lower()
         if action_lower not in ["click", "fill", "type", "hover", "select"]:
             return {
@@ -257,7 +355,6 @@ class VloneDriver:
                 "vlone_id": int(vlone_id)
             }
 
-        session = self._active_sessions.get(session_id, {})
         elements = session.get("elements", [])
         matched = next((e for e in elements if e.get("vlone_id") == int(vlone_id)), None)
 
@@ -269,23 +366,39 @@ class VloneDriver:
                 "vlone_id": int(vlone_id)
             }
 
-        live_page = self._live_pages.get(session_id)
-        if live_page:
-            try:
-                locator = live_page.locator(f'[data-vlone-id="{vlone_id}"]')
-                if action_lower == "click":
-                    await locator.click(timeout=5000)
-                elif action_lower in ["fill", "type"]:
-                    await locator.fill(value, timeout=5000)
-                elif action_lower == "hover":
-                    await locator.hover(timeout=5000)
-                elif action_lower == "select":
-                    await locator.select_option(value, timeout=5000)
-            except Exception as e:
-                logger.warning(f"Live Playwright action on #{vlone_id} ({e}); updating catalog state.")
+        live_entry = self._live_pages[session_id]
+        live_page = live_entry["page"]
+        try:
+            locator = live_page.locator(f'[data-vlone-id="{vlone_id}"]')
+            if action_lower == "click":
+                await locator.click(timeout=5000)
+            elif action_lower in ["fill", "type"]:
+                await locator.fill(value, timeout=5000)
+            elif action_lower == "hover":
+                await locator.hover(timeout=5000)
+            elif action_lower == "select":
+                await locator.select_option(value, timeout=5000)
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": f"Playwright action failed: {e}",
+                "action": action,
+                "vlone_id": int(vlone_id)
+            }
 
         if action_lower in ["fill", "type"]:
             matched["value"] = value
+
+        # Sync DOM changes back to active session catalog
+        try:
+            raw_html = await live_page.content()
+            parsed = self._clean_and_catalog_dom(raw_html, session.get("url", ""))
+            session["markdown"] = parsed["markdown"]
+            session["elements"] = parsed["elements"]
+            session["elements_count"] = len(parsed["elements"])
+        except Exception:
+            pass
+
         result_msg = f"Executed '{action}' on element #{vlone_id} ({matched.get('tag')}: '{matched.get('text') or matched.get('name')}') with value='{value}'"
 
         return {
@@ -303,7 +416,23 @@ class VloneDriver:
         return self._sniffed_apis.get(session_id, [])
 
     async def close(self):
-        """Closes any active HTTP client connections."""
+        """Closes active Playwright instances and HTTP client connections."""
+        for sess_id, live in list(self._live_pages.items()):
+            try:
+                await live["page"].close()
+                await live["context"].close()
+                await live["browser"].close()
+            except Exception:
+                pass
+        self._live_pages.clear()
+
+        if self._playwright:
+            try:
+                await self._playwright.stop()
+            except Exception:
+                pass
+            self._playwright = None
+
         if self._http_client and not self._http_client.is_closed:
             await self._http_client.aclose()
             self._http_client = None
