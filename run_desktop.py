@@ -17,6 +17,19 @@ BASE_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = BASE_DIR / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 
+# Ensure stdout and stderr exist even when running under pythonw.exe or windowless environment
+log_file = BASE_DIR / "launcher.log"
+if sys.stdout is None:
+    try:
+        sys.stdout = open(log_file, "a", encoding="utf-8", buffering=1)
+    except Exception:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    try:
+        sys.stderr = open(log_file, "a", encoding="utf-8", buffering=1)
+    except Exception:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
 try:
     import uvicorn
     from app.main import app
@@ -136,6 +149,13 @@ def main():
             print("[Test Mode] Self-test reported failures.")
             sys.exit(1)
 
+    # Automatically open default web browser for instant accessibility
+    try:
+        import webbrowser
+        webbrowser.open(server_url)
+    except Exception:
+        pass
+
     # Native Window Launch via pywebview
     if not args.no_window:
         try:
@@ -151,10 +171,8 @@ def main():
             )
             webview.start()
             print("[Launcher] Native window closed. Shutting down...")
-        except ImportError:
-            print("[Launcher Warning] pywebview not installed. Opening default browser instead.")
-            import webbrowser
-            webbrowser.open(server_url)
+        except Exception as e:
+            print(f"[Launcher Notice] Native pywebview mode: {e}. Running in web browser interface.")
             try:
                 while True:
                     time.sleep(1)
