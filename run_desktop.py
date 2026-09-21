@@ -12,6 +12,10 @@ import urllib.request
 import json
 from pathlib import Path
 
+# Disable hardware acceleration quirks that cause blank/black screens on Windows dual-GPU laptops
+os.environ.setdefault("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--disable-gpu --disable-software-rasterizer")
+
+
 # Add backend directory to sys.path
 BASE_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = BASE_DIR / "backend"
@@ -70,15 +74,23 @@ def run_self_test(host: str, port: int) -> bool:
         ("/api/v1/spatial/state", "2D Spatial Grid & DJ State"),
         ("/api/v1/c2/tasks", "Task Kanban Rail"),
         ("/api/v1/c2/groups", "Executive Sub-Team Groups"),
-        ("/api/v1/vlone/state", "VLONE Engine State")
+        ("/api/v1/vlone/state", "VLONE Engine State"),
+        ("/api/sim/state", "Graviton Open World Physics & Simulation"),
+        ("/api/v1/console/deck", "Open World Console C2 Deck"),
+        ("/api/v1/behavior/status", "Behavioral Analysis & Kinetics"),
+        ("/api/v1/devloop/health", "Architect Prime Autonomous DevLoop")
     ]
 
     for path, label in endpoints:
         try:
             req = urllib.request.Request(f"{base_url}{path}")
             with urllib.request.urlopen(req, timeout=3.0) as resp:
-                data = json.loads(resp.read().decode())
-                print(f"  [PASS] {label} ({path}) -> Status {resp.status}")
+                resp.read()
+                if resp.status == 200:
+                    print(f"  [PASS] {label} ({path}) -> Status {resp.status}")
+                else:
+                    print(f"  [FAIL] {label} ({path}) -> Status {resp.status}")
+                    return False
         except Exception as e:
             print(f"  [FAIL] {label} ({path}) -> {e}")
             return False
@@ -111,10 +123,10 @@ def main():
     parser = argparse.ArgumentParser(description="Antigravity Unified C2 Desktop Launcher")
     parser.add_argument("--test-mode", action="store_true", help="Run self-test suite and exit")
     parser.add_argument("--no-window", action="store_true", help="Run backend server only without native window")
-    parser.add_argument("--port", type=int, default=8000, help="Port for C2 Backend (default: 8000)")
-    parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address (default: 127.0.0.1)")
+    parser.add_argument("--port", type=int, default=settings.server_port, help=f"Port for C2 Backend (default: {settings.server_port})")
+    parser.add_argument("--host", type=str, default=settings.server_host, help=f"Host address (default: {settings.server_host})")
 
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     print("===================================================================")
     print("  ANTIGRAVITY UNIFIED C2 EXECUTIVE DESK")
@@ -149,14 +161,7 @@ def main():
             print("[Test Mode] Self-test reported failures.")
             sys.exit(1)
 
-    # Automatically open default web browser for instant accessibility
-    try:
-        import webbrowser
-        webbrowser.open(server_url)
-    except Exception:
-        pass
-
-    # Native Window Launch via pywebview
+    # Native Window Launch via pywebview and browser fallback
     if not args.no_window:
         try:
             import webview
@@ -169,10 +174,15 @@ def main():
                 resizable=True,
                 min_size=(1024, 700)
             )
-            webview.start()
+            webview.start(debug=True)
             print("[Launcher] Native window closed. Shutting down...")
         except Exception as e:
-            print(f"[Launcher Notice] Native pywebview mode: {e}. Running in web browser interface.")
+            print(f"[Launcher Notice] Native pywebview mode: {e}. Opening default web browser instead.")
+            try:
+                import webbrowser
+                webbrowser.open(server_url)
+            except Exception:
+                pass
             try:
                 while True:
                     time.sleep(1)

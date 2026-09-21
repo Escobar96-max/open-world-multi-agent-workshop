@@ -77,6 +77,14 @@ def complete_task_endpoint(req: TaskActionRequest):
     return res
 
 
+@router.post("/tasks/drain")
+async def drain_tasks_endpoint():
+    """Manually triggers an immediate autonomous drain cycle on in-progress tasks."""
+    duo = get_executive_duo()
+    drained = await duo.drain_tasks_step()
+    return {"success": True, "drained_count": drained, "tasks": duo.get_tasks()}
+
+
 @router.get("/groups")
 def get_groups_endpoint():
     """Lists available sub-team channels."""
@@ -106,3 +114,29 @@ def post_group_chat_endpoint(req: GroupChatRequest):
     duo = get_executive_duo()
     res = duo.post_group_message(req.group_id, req.sender, req.text)
     return res
+
+
+class RLCDDistillRequest(BaseModel):
+    query: str
+    agent_name: Optional[str] = "Nova"
+
+
+@router.get("/rlcd/status")
+def rlcd_status_endpoint():
+    """Returns live telemetry for Parallel RLCD engine."""
+    duo = get_executive_duo()
+    return duo.rlcd_engine.get_status()
+
+
+@router.post("/rlcd/distill")
+async def rlcd_distill_endpoint(req: RLCDDistillRequest):
+    """Triggers an explicit RLCD context distillation cycle and logs trace to Obsidian."""
+    duo = get_executive_duo()
+    if not req.query.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+    result = await duo.rlcd_engine.run_context_distillation(
+        user_query=req.query.strip(),
+        agent_name=req.agent_name or "Nova"
+    )
+    return result
+

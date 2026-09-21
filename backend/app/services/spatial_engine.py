@@ -51,7 +51,14 @@ class SpatialEngine:
             ("Architect_Prime", "⚙️ Architect Prime", "Dev Loop Engine", 18.0, 32.0),
             ("Sentinel_Alpha", "🛡️ Sentinel Alpha", "Gatekeeper Defense", 12.0, 14.0),
             ("Curator_Node", "📚 Curator Node", "Vault Archival", 72.0, 74.0),
-            ("DJ_Frequency", "🎵 DJ Frequency", "Lounge Host", 82.0, 84.0)
+            ("DJ_Frequency", "🎵 DJ Frequency", "Lounge Host", 82.0, 84.0),
+            ("Dr_Aris", "🔬 Dr. Aris", "Resonance Physics", 35.0, 35.0),
+            ("Vector_09", "⚡ Vector-09", "Kinetic Field Recon", 60.0, 40.0),
+            ("AEGIS_Core", "🛡️ A.E.G.I.S. Core", "Safety Containment", 10.0, 10.0),
+            ("Unit_404", "🤖 Unit-404", "Autonomous Operative", 45.0, 48.0),
+            ("Bob", "🛠️ Bob", "Simulation Agent", 52.0, 55.0),
+            ("Alice", "💡 Alice", "Simulation Agent", 30.0, 22.0),
+            ("Charlie", "🔭 Charlie", "Simulation Agent", 68.0, 70.0)
         ]
         for aid, name, role, x, y in defaults:
             zone, temp = self.classify_zone(x, y)

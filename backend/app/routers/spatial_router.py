@@ -16,6 +16,8 @@ router = APIRouter(prefix="/api/v1/spatial", tags=["Spatial World"])
 
 _engine = SpatialEngine()
 _dj = DJFrequencyNode()
+spatial_engine = _engine
+dj_frequency = _dj
 
 
 def get_spatial_engine() -> SpatialEngine:

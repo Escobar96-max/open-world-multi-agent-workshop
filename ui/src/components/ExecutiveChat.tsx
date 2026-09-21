@@ -6,8 +6,9 @@ interface ChatMessage {
   timestamp: string;
   prompt: string;
   operator: string;
-  orion_response: string;
-  nova_response: string;
+  responder?: string;
+  orion_response?: string | null;
+  nova_response?: string | null;
   tasks: any[];
   obsidian_vault_note?: string;
 }
@@ -59,11 +60,11 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
     const currentGroup = selectedGroup;
     const fetchGroupMessages = async () => {
       try {
-        const res = await fetch('/api/v1/c2/groups', { signal: controller.signal });
+        const res = await fetch(`/api/v1/c2/group-chat?group_id=${encodeURIComponent(currentGroup)}`, { signal: controller.signal });
         if (res.ok && selectedGroup === currentGroup) {
           const data = await res.json();
           if (selectedGroup === currentGroup) {
-            const msgs = (data.groups && data.groups[currentGroup]) || [];
+            const msgs = data.messages || [];
             setGroupMessages(msgs);
           }
         }
@@ -98,11 +99,11 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
         body: JSON.stringify({ prompt: query, operator: 'Boss' })
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(prev => [...prev, data]);
-        if (onTaskCreated) onTaskCreated();
-      } else {
+        if (res.ok) {
+          const data = await res.json();
+          setMessages(prev => [...prev, data]);
+          if (onTaskCreated && data.tasks && data.tasks.length > 0) onTaskCreated();
+        } else {
         const errorData = await res.json().catch(() => ({}));
         setMessages(prev => [
           ...prev,
@@ -210,72 +211,108 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
                 </div>
 
                 {/* Orion Prime Response */}
-                <div className="flex items-start space-x-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-lg shadow-md orion-glow flex-shrink-0">
-                    👑
-                  </div>
-                  <div className="flex-1 bg-amber-950/20 border border-amber-500/30 rounded-2xl rounded-tl-sm p-3.5 text-amber-100 shadow-md">
-                    <div className="flex items-center space-x-2 mb-1.5">
-                      <span className="text-xs font-bold text-amber-400">Orion Prime</span>
-                      <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 font-semibold">
-                        Chief Orchestrator
-                      </span>
+                {m.orion_response && (
+                  <div className="flex items-start space-x-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-lg shadow-md orion-glow flex-shrink-0">
+                      👑
                     </div>
-                    <div className="text-sm leading-relaxed font-sans whitespace-pre-wrap">
-                      {m.orion_response.replace(/^👑 \*\*Orion Prime\*\*: /, '').replace(/^"|"$/g, '')}
-                    </div>
-
-                    {/* Task DAG breakdown preview */}
-                    {m.tasks && m.tasks.length > 0 && (
-                      <div className="mt-2.5 pt-2.5 border-t border-amber-500/20 space-y-1.5">
-                        <span className="text-[11px] font-semibold tracking-wider text-amber-300 uppercase">
-                          ⚡ Dispatched Task DAG ({m.tasks.length})
+                    <div className="flex-1 bg-amber-950/20 border border-amber-500/30 rounded-2xl rounded-tl-sm p-3.5 text-amber-100 shadow-md">
+                      <div className="flex items-center space-x-2 mb-1.5">
+                        <span className="text-xs font-bold text-amber-400">Orion Prime</span>
+                        <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 font-semibold">
+                          Chief Orchestrator
                         </span>
-                        <div className="grid grid-cols-1 gap-1.5">
-                          {m.tasks.map((t, tid) => (
-                            <div key={tid} className="flex items-center justify-between text-xs bg-slate-950/50 px-2.5 py-1.5 rounded border border-slate-800">
-                              <span className="text-slate-300 font-medium">{t.title}</span>
-                              <div className="flex items-center space-x-2">
-                                <span className="text-[10px] text-cyan-400 bg-cyan-950/50 px-1.5 py-0.5 rounded border border-cyan-800">
-                                  @{t.assignee}
-                                </span>
-                                <span className="text-[10px] text-amber-400 font-bold uppercase">
-                                  {t.status.replace('_', ' ')}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
                       </div>
-                    )}
+                      <div className="text-sm leading-relaxed font-sans whitespace-pre-wrap">
+                        {typeof m.orion_response === 'string' ? m.orion_response.replace(/^👑 \*\*Orion Prime\*\*: /, '').replace(/^"|"$/g, '') : String(m.orion_response || '')}
+                      </div>
+
+                      {/* Task DAG breakdown preview */}
+                      {Array.isArray(m.tasks) && m.tasks.length > 0 && (
+                        <div className="mt-2.5 pt-2.5 border-t border-amber-500/20 space-y-1.5">
+                          <span className="text-[11px] font-semibold tracking-wider text-amber-300 uppercase">
+                            ⚡ Dispatched Task DAG ({m.tasks.length})
+                          </span>
+                          <div className="grid grid-cols-1 gap-1.5">
+                            {m.tasks.map((t, tid) => (
+                              <div key={tid} className="flex items-center justify-between text-xs bg-slate-950/50 px-2.5 py-1.5 rounded border border-slate-800">
+                                <span className="text-slate-300 font-medium">{t?.title || 'Untitled Task'}</span>
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-[10px] text-cyan-400 bg-cyan-950/50 px-1.5 py-0.5 rounded border border-cyan-800">
+                                    @{t?.assignee || 'Agent'}
+                                  </span>
+                                  <span className="text-[10px] text-amber-400 font-bold uppercase">
+                                    {(t?.status || '').replace('_', ' ')}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Obsidian Vault sync tag on Orion if Nova did not reply */}
+                      {!m.nova_response && m.obsidian_vault_note && (
+                        <div className="mt-2 text-[11px] text-amber-300/80 flex items-center space-x-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Obsidian Memory: <code className="text-[10px] text-amber-200 bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-800">{typeof m.obsidian_vault_note === 'string' ? m.obsidian_vault_note.split(/[\\/]/).pop() : ''}</code></span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Nova Response */}
-                <div className="flex items-start space-x-3">
-                  <div className="w-9 h-9 rounded-xl bg-pink-500/20 border border-pink-500/40 flex items-center justify-center text-lg shadow-md nova-glow flex-shrink-0">
-                    🌸
-                  </div>
-                  <div className="flex-1 bg-pink-950/20 border border-pink-500/30 rounded-2xl rounded-tl-sm p-3.5 text-pink-100 shadow-md">
-                    <div className="flex items-center space-x-2 mb-1.5">
-                      <span className="text-xs font-bold text-pink-400">Nova</span>
-                      <span className="text-[10px] bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full border border-pink-500/30 font-semibold">
-                        Executive Assistant ✨ UwU
-                      </span>
+                {m.nova_response && (
+                  <div className="flex items-start space-x-3">
+                    <div className="w-9 h-9 rounded-xl bg-pink-500/20 border border-pink-500/40 flex items-center justify-center text-lg shadow-md nova-glow flex-shrink-0">
+                      🌸
                     </div>
-                    <div className="text-sm leading-relaxed font-sans whitespace-pre-wrap">
-                      {m.nova_response.replace(/^🌸 \*\*Nova\*\*: /, '').replace(/^"|"$/g, '')}
-                    </div>
-
-                    {/* Obsidian Vault sync tag */}
-                    {m.obsidian_vault_note && (
-                      <div className="mt-2 text-[11px] text-pink-300/80 flex items-center space-x-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Obsidian Memory: <code className="text-[10px] text-pink-200 bg-pink-950/50 px-1.5 py-0.5 rounded border border-pink-800">{m.obsidian_vault_note.split(/[\\/]/).pop()}</code></span>
+                    <div className="flex-1 bg-pink-950/20 border border-pink-500/30 rounded-2xl rounded-tl-sm p-3.5 text-pink-100 shadow-md">
+                      <div className="flex items-center space-x-2 mb-1.5">
+                        <span className="text-xs font-bold text-pink-400">Nova</span>
+                        <span className="text-[10px] bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full border border-pink-500/30 font-semibold">
+                          Executive Assistant ✨ UwU
+                        </span>
                       </div>
-                    )}
+                      <div className="text-sm leading-relaxed font-sans whitespace-pre-wrap">
+                        {typeof m.nova_response === 'string' ? m.nova_response.replace(/^🌸 \*\*Nova\*\*: /, '').replace(/^"|"$/g, '') : String(m.nova_response || '')}
+                      </div>
+
+                      {/* Task DAG breakdown preview if Orion did not reply */}
+                      {!m.orion_response && Array.isArray(m.tasks) && m.tasks.length > 0 && (
+                        <div className="mt-2.5 pt-2.5 border-t border-pink-500/20 space-y-1.5">
+                          <span className="text-[11px] font-semibold tracking-wider text-pink-300 uppercase">
+                            ⚡ Dispatched Task DAG ({m.tasks.length})
+                          </span>
+                          <div className="grid grid-cols-1 gap-1.5">
+                            {m.tasks.map((t, tid) => (
+                              <div key={tid} className="flex items-center justify-between text-xs bg-slate-950/50 px-2.5 py-1.5 rounded border border-slate-800">
+                                <span className="text-slate-300 font-medium">{t?.title || 'Untitled Task'}</span>
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-[10px] text-cyan-400 bg-cyan-950/50 px-1.5 py-0.5 rounded border border-cyan-800">
+                                    @{t?.assignee || 'Agent'}
+                                  </span>
+                                  <span className="text-[10px] text-pink-400 font-bold uppercase">
+                                    {(t?.status || '').replace('_', ' ')}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Obsidian Vault sync tag */}
+                      {m.obsidian_vault_note && (
+                        <div className="mt-2 text-[11px] text-pink-300/80 flex items-center space-x-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Obsidian Memory: <code className="text-[10px] text-pink-200 bg-pink-950/50 px-1.5 py-0.5 rounded border border-pink-800">{typeof m.obsidian_vault_note === 'string' ? m.obsidian_vault_note.split(/[\\/]/).pop() : ''}</code></span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             ))}
           </>

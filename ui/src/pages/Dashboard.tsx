@@ -3,8 +3,9 @@ import { ExecutiveChat } from '../components/ExecutiveChat';
 import { TaskKanban } from '../components/TaskKanban';
 import { SpatialGrid } from '../components/SpatialGrid';
 import { VloneConsole } from '../components/VloneConsole';
+import { OpenWorldVisualizer } from '../components/OpenWorldVisualizer';
 
-type ActiveTab = 'c2_desk' | 'spatial_grid' | 'vlone_engine';
+type ActiveTab = 'c2_desk' | 'open_world' | 'spatial_grid' | 'vlone_engine';
 
 export const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('c2_desk');
@@ -48,6 +49,16 @@ export const Dashboard: React.FC = () => {
             <span>💬</span> Executive C2 Desk
           </button>
           <button
+            onClick={() => setActiveTab('open_world')}
+            className={`px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
+              activeTab === 'open_world'
+                ? 'bg-slate-800 text-indigo-300 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <span>🪐</span> Autonomous Open World
+          </button>
+          <button
             onClick={() => setActiveTab('spatial_grid')}
             className={`px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
               activeTab === 'spatial_grid'
@@ -55,7 +66,7 @@ export const Dashboard: React.FC = () => {
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
             }`}
           >
-            <span>🪐</span> Spatial World & DJ
+            <span>🎵</span> Spatial Lounge & DJ
           </button>
           <button
             onClick={() => setActiveTab('vlone_engine')}
@@ -95,6 +106,12 @@ export const Dashboard: React.FC = () => {
             <div className="xl:col-span-5 h-full overflow-hidden">
               <TaskKanban refreshTrigger={refreshKanbanKey} />
             </div>
+          </div>
+        )}
+
+        {activeTab === 'open_world' && (
+          <div className="h-full overflow-hidden">
+            <OpenWorldVisualizer />
           </div>
         )}
 
