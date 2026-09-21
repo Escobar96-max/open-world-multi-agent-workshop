@@ -52,7 +52,8 @@ def enter_sanctum_endpoint(req: EnterSanctumRequest):
             skill_domain=req.desired_skill_domain.strip()
         )
     except Exception as err:
-        raise HTTPException(status_code=400, detail=str(err))
+        logger.error(f"Curriculum initialization error: {err}")
+        raise HTTPException(status_code=400, detail="Curriculum initialization failed.")
 
     # Synchronize with Antigravity 2D Spatial Matrix & 432Hz Frequency Node
     spatial_coords = None
