@@ -14,7 +14,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 import httpx
 from app.services.vault_manager import VaultManager, VaultSecurityError
-from app.services.vlone_driver import VloneDriver
+from app.services.vlone_driver import VloneDriver, VloneUpgradedDriver
 
 
 def test_vault_manager_write_and_recall(tmp_path):
@@ -123,3 +123,97 @@ async def test_vlone_driver_perception_and_interaction(tmp_path):
         await driver.open_page("file:///etc/passwd", session_id="ssrf_test")
 
     await driver.close()
+
+
+@pytest.mark.asyncio
+async def test_vlone_upgraded_driver_stealth_and_init(tmp_path):
+    """
+    Verifies VloneUpgradedDriver:
+    1. Initializes with stealth shielding removing navigator.webdriver
+    2. Provides chrome runtime and plugins
+    3. Handles auto_scroll and session state saving
+    """
+    driver = VloneUpgradedDriver(session_id="workspace_gmail", headless=True)
+    driver.session_dir = tmp_path
+    driver.session_file = tmp_path / "workspace_gmail_state.json"
+
+    try:
+        await driver.initialize()
+        assert driver.active_page is not None
+
+        # 1. Verify navigator.webdriver is undefined
+        webdriver_val = await driver.active_page.evaluate("() => navigator.webdriver")
+        assert webdriver_val is None or webdriver_val is False
+
+        # 2. Verify window.chrome runtime and plugins
+        chrome_exists = await driver.active_page.evaluate("() => Boolean(window.chrome && window.chrome.runtime)")
+        assert chrome_exists is True
+
+        plugins_len = await driver.active_page.evaluate("() => navigator.plugins.length")
+        assert plugins_len > 0
+
+        # 3. Verify auto_scroll & human_type interfaces
+        await driver.auto_scroll(max_scrolls=1, delay_ms=10)
+
+        # 4. Verify session vault persistence
+        await driver.save_session_vault()
+        assert driver.session_file.exists()
+    finally:
+        await driver.close()
+
+
+@pytest.mark.asyncio
+async def test_vlone_upgraded_selective_sniffer(tmp_path):
+    """
+    Verifies selective network sniffer:
+    1. Discards analytics, tracking, telemetry, and pixel blobs
+    2. Retains high-value API endpoints (wp-json, api/v, users, team)
+    """
+    driver = VloneUpgradedDriver(session_id="osint_social", headless=True)
+    driver.session_dir = tmp_path
+    driver.session_file = tmp_path / "osint_social_state.json"
+
+    class MockResponse:
+        def __init__(self, url: str, status: int = 200, body: str = '{"status": "ok"}'):
+            self.url = url
+            self.status = status
+            self._body = body
+
+        async def text(self):
+            return self._body
+
+    # Simulate responses through sniffer callback
+    class MockPage:
+        def __init__(self):
+            self.handlers = []
+
+        def on(self, event, handler):
+            if event == "response":
+                self.handlers.append(handler)
+
+        async def emit_response(self, resp):
+            for h in self.handlers:
+                await h(resp)
+
+    mock_page = MockPage()
+    driver._attach_selective_sniffer(mock_page)
+
+    # 1. Telemetry noise (should be ignored)
+    await mock_page.emit_response(MockResponse("https://example.com/analytics/v2/collect"))
+    await mock_page.emit_response(MockResponse("https://example.com/tr/facebook-pixel.gif"))
+    await mock_page.emit_response(MockResponse("https://telemetry.service.com/track"))
+    await mock_page.emit_response(MockResponse("https://ad.doubleclick.net/pixel"))
+
+    assert len(driver.sniffed_apis) == 0
+
+    # 2. High-value endpoints (should be captured)
+    await mock_page.emit_response(MockResponse("https://example.com/wp-json/wp/v2/users", body='[{"name": "Admin"}]'))
+    await mock_page.emit_response(MockResponse("https://example.com/api/v1/leadership", body='{"ceo": "Sarah"}'))
+    await mock_page.emit_response(MockResponse("https://example.com/graphql", body='{"data": {"team": []}}'))
+
+    assert len(driver.sniffed_apis) == 3
+    urls = [api["url"] for api in driver.sniffed_apis]
+    assert any("wp-json" in u for u in urls)
+    assert any("api/v1" in u for u in urls)
+    assert any("graphql" in u for u in urls)
+

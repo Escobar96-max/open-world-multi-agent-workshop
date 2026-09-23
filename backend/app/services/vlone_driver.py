@@ -11,6 +11,7 @@ import ipaddress
 import json
 import logging
 import os
+import random
 import re
 import socket
 from pathlib import Path
@@ -196,11 +197,16 @@ class VloneDriver:
                         pass
 
                 # Pin DNS resolution for target host to the validated IP via Chromium network flags
-                playwright_args = [f"--host-resolver-rules=MAP {target_hostname} {validated_ip}"]
+                playwright_args = [
+                    f"--host-resolver-rules=MAP {target_hostname} {validated_ip}",
+                    "--no-sandbox",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-infobars"
+                ]
                 browser = await self._playwright.chromium.launch(headless=True, args=playwright_args)
                 context = await browser.new_context(
-                    viewport={"width": 1280, "height": 800},
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) VLONE-Headless/3.0"
+                    viewport={"width": 1920, "height": 1080},
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
                 )
 
                 saved_cookies = self.load_session_cookies(session_id)
@@ -208,6 +214,8 @@ class VloneDriver:
                     await context.add_cookies(saved_cookies)
 
                 page = await context.new_page()
+                await self._inject_stealth_and_cleaners(page)
+                self._attach_selective_sniffer(page, session_id)
 
                 # Sniff background APIs
                 captured_requests: List[Dict[str, Any]] = []
@@ -580,5 +588,236 @@ class VloneDriver:
             options=["CLICK_BUTTON", "INPUT_FIELD", "DISMISS_MODAL"]
         )
         return choice
+
+    async def _inject_stealth_and_cleaners(self, page: Any) -> None:
+        """Injects stealth cloaking and cookie consent popup annihilator into DOM."""
+        await page.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            window.chrome = { runtime: {} };
+            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+        """)
+        await page.add_init_script("""
+            window.addEventListener('DOMContentLoaded', () => {
+                const killSelectors = [
+                    '#onetrust-banner-sdk', '.cookie-consent', '.modal-backdrop', 
+                    '[aria-label*="cookie" i]', '[id*="cookie" i]', '.cc-banner'
+                ];
+                killSelectors.forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => el.remove());
+                });
+                if (document.body) {
+                    document.body.style.overflow = 'auto';
+                }
+            });
+            const observer = new MutationObserver(() => {
+                const killSelectors = [
+                    '#onetrust-banner-sdk', '.cookie-consent', '.modal-backdrop', 
+                    '[aria-label*="cookie" i]', '[id*="cookie" i]', '.cc-banner'
+                ];
+                killSelectors.forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => el.remove());
+                });
+                if (document.body) {
+                    document.body.style.overflow = 'auto';
+                }
+            });
+            observer.observe(document.documentElement, { childList: true, subtree: true });
+        """)
+
+    def _attach_selective_sniffer(self, page: Any, session_id: str) -> None:
+        """Filters noise and captures high-value REST and XHR APIs."""
+        if session_id not in self._sniffed_apis:
+            self._sniffed_apis[session_id] = []
+
+        async def on_response(response):
+            url = response.url.lower()
+            if any(ign in url for ign in ["analytics", "pixel", "telemetry", "tracking", "doubleclick", "hotjar"]):
+                return
+            if any(key in url for key in ["wp-json", "api/v", "graphql", "users", "team", "contact", "admin", "member"]):
+                try:
+                    text = await response.text()
+                    self._sniffed_apis[session_id].append({
+                        "url": response.url,
+                        "status": response.status,
+                        "response_body": text[:3000]
+                    })
+                except Exception:
+                    pass
+
+        page.on("response", on_response)
+
+    async def auto_scroll(self, session_id: str = "default", max_scrolls: int = 3, delay_ms: int = 1000) -> None:
+        """Scrolls down smoothly to trigger lazy-loaded feeds & reactions."""
+        live = self._live_pages.get(session_id)
+        if live and live.get("page"):
+            page = live["page"]
+            for _ in range(max_scrolls):
+                try:
+                    await page.mouse.wheel(0, 1200)
+                except Exception:
+                    await page.evaluate("window.scrollBy(0, 1200)")
+                await asyncio.sleep(delay_ms / 1000.0)
+
+    async def human_type(self, selector: str, text: str, session_id: str = "default") -> None:
+        """Types text with randomized keystroke intervals to avoid anti-bot detection."""
+        live = self._live_pages.get(session_id)
+        if live and live.get("page"):
+            page = live["page"]
+            element = page.locator(selector).first
+            await element.focus()
+            for char in text:
+                await page.keyboard.type(char)
+                await asyncio.sleep(random.uniform(0.045, 0.125))
+
+
+class VloneUpgradedDriver:
+    """
+    Dedicated upgraded Vlone Engine with Stealth, Auto-Scroll, Modal Annihilator,
+    and Isolated Session Vault Profiles (e.g. workspace_gmail, osint_social).
+    """
+
+    def __init__(self, session_id: str = "default_session", headless: bool = True):
+        self.session_id = session_id
+        self.headless = headless
+        self.session_dir = Path("./vlone_sessions")
+        self.session_dir.mkdir(parents=True, exist_ok=True)
+        self.session_file = self.session_dir / f"{self.session_id}_state.json"
+        self.playwright: Any = None
+        self.browser: Any = None
+        self.context: Any = None
+        self.active_page: Any = None
+        self.sniffed_apis: List[Dict[str, Any]] = []
+
+    async def initialize(self):
+        if self.playwright is None:
+            from playwright.async_api import async_playwright
+            self.playwright = await async_playwright().start()
+            self.browser = await self.playwright.chromium.launch(
+                headless=self.headless,
+                args=[
+                    "--no-sandbox",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-infobars"
+                ]
+            )
+            # Load persistent storage state if available
+            storage = str(self.session_file) if self.session_file.exists() else None
+            self.context = await self.browser.new_context(
+                storage_state=storage,
+                viewport={"width": 1920, "height": 1080},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+            )
+            await self._inject_stealth_and_cleaners(self.context)
+            self.active_page = await self.context.new_page()
+            await self._inject_stealth_and_cleaners(self.active_page)
+            try:
+                await self.active_page.evaluate("""() => {
+                    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                    window.chrome = { runtime: {} };
+                    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+                    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+                }""")
+            except Exception:
+                pass
+            self._attach_selective_sniffer(self.active_page)
+
+    async def _inject_stealth_and_cleaners(self, page: Any):
+        # 1. Stealth masking
+        await page.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            window.chrome = { runtime: {} };
+            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+        """)
+        # 2. Cookie consent banner auto-demolisher
+        await page.add_init_script("""
+            window.addEventListener('DOMContentLoaded', () => {
+                const killSelectors = [
+                    '#onetrust-banner-sdk', '.cookie-consent', '.modal-backdrop', 
+                    '[aria-label*="cookie" i]', '[id*="cookie" i]', '.cc-banner'
+                ];
+                killSelectors.forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => el.remove());
+                });
+                if (document.body) {
+                    document.body.style.overflow = 'auto';
+                }
+            });
+            const observer = new MutationObserver(() => {
+                const killSelectors = [
+                    '#onetrust-banner-sdk', '.cookie-consent', '.modal-backdrop', 
+                    '[aria-label*="cookie" i]', '[id*="cookie" i]', '.cc-banner'
+                ];
+                killSelectors.forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => el.remove());
+                });
+                if (document.body) {
+                    document.body.style.overflow = 'auto';
+                }
+            });
+            observer.observe(document.documentElement, { childList: true, subtree: true });
+        """)
+
+    def _attach_selective_sniffer(self, page: Any):
+        async def on_response(response):
+            url = response.url.lower()
+            # Discard telemetry noise
+            if any(ign in url for ign in ["analytics", "pixel", "telemetry", "tracking", "doubleclick", "hotjar"]):
+                return
+            # Priority capture
+            if any(key in url for key in ["wp-json", "api/v", "graphql", "users", "team", "contact", "admin", "member"]):
+                try:
+                    text = await response.text()
+                    self.sniffed_apis.append({
+                        "url": response.url,
+                        "status": response.status,
+                        "response_body": text[:3000]
+                    })
+                except Exception:
+                    pass
+        page.on("response", on_response)
+
+    async def auto_scroll(self, max_scrolls: int = 3, delay_ms: int = 1000):
+        """Scrolls down smoothly to trigger lazy-loaded feeds & reactions."""
+        for _ in range(max_scrolls):
+            if self.active_page:
+                try:
+                    await self.active_page.mouse.wheel(0, 1200)
+                except Exception:
+                    await self.active_page.evaluate("window.scrollBy(0, 1200)")
+            await asyncio.sleep(delay_ms / 1000.0)
+
+    async def human_type(self, selector: str, text: str):
+        """Types text with randomized keystroke intervals to avoid anti-bot detection."""
+        if not self.active_page:
+            return
+        element = self.active_page.locator(selector).first
+        await element.focus()
+        for char in text:
+            await self.active_page.keyboard.type(char)
+            await asyncio.sleep(random.uniform(0.045, 0.125))
+
+    async def save_session_vault(self):
+        if self.context:
+            try:
+                await self.context.storage_state(path=str(self.session_file))
+            except Exception as ex:
+                logger.debug(f"Session vault save: {ex}")
+
+    async def close(self):
+        await self.save_session_vault()
+        if self.browser:
+            try:
+                await self.browser.close()
+            except Exception:
+                pass
+            self.browser = None
+        if self.playwright:
+            try:
+                await self.playwright.stop()
+            except Exception:
+                pass
+            self.playwright = None
 
 
