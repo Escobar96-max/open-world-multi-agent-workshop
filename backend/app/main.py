@@ -27,6 +27,7 @@ from app.routers.spatial_router import router as spatial_router, spatial_engine
 from app.routers.vlone_router import router as vlone_router
 from app.routers.sanctum import router as sanctum_router
 from app.routers.training_router import router as training_router
+from app.routers.voice_router import router as voice_router
 
 # Open World Subsystems
 try:
@@ -154,6 +155,7 @@ app.include_router(spatial_router)
 app.include_router(vlone_router)
 app.include_router(sanctum_router)
 app.include_router(training_router)
+app.include_router(voice_router)
 
 # Autonomous Open World Routers
 if OPEN_WORLD_AVAILABLE:

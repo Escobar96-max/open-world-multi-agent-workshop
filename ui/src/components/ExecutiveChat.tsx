@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, Shield, Compass, CheckCircle2, MessageSquare, Terminal, ExternalLink } from 'lucide-react';
+import { Send, Sparkles, Shield, Compass, CheckCircle2, MessageSquare, Terminal, ExternalLink, Volume2 } from 'lucide-react';
+import { VoiceController, playAgentVoice } from './VoiceController';
 
 interface ChatMessage {
   id: string;
@@ -382,6 +383,15 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
                         <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 font-semibold">
                           Chief Orchestrator
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => playAgentVoice(m.orion_response || '', 'Orion')}
+                          title="Listen to Orion's voice (Edge-TTS bn-BD-PradeepNeural)"
+                          className="ml-auto text-[10px] flex items-center gap-1 text-amber-300 hover:text-amber-100 bg-amber-950/60 hover:bg-amber-900/80 border border-amber-500/40 px-2 py-0.5 rounded-md transition-colors"
+                        >
+                          <Volume2 className="w-3 h-3 text-amber-400" />
+                          <span>Voice</span>
+                        </button>
                       </div>
                       <div className="text-sm leading-relaxed font-sans whitespace-pre-wrap">
                         {typeof m.orion_response === 'string' ? m.orion_response.replace(/^👑 \*\*Orion Prime\*\*: /, '').replace(/^"|"$/g, '') : String(m.orion_response || '')}
@@ -434,6 +444,15 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
                         <span className="text-[10px] bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full border border-pink-500/30 font-semibold">
                           Executive Assistant ✨ UwU
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => playAgentVoice(m.nova_response || '', 'Nova')}
+                          title="Listen to Nova PA (Edge-TTS bn-BD-NabanitaNeural)"
+                          className="ml-auto text-[10px] flex items-center gap-1 text-pink-300 hover:text-pink-100 bg-pink-950/60 hover:bg-pink-900/80 border border-pink-500/40 px-2 py-0.5 rounded-md transition-colors"
+                        >
+                          <Volume2 className="w-3 h-3 text-pink-400" />
+                          <span>Voice</span>
+                        </button>
                       </div>
                       <div className="text-sm leading-relaxed font-sans whitespace-pre-wrap">
                         {typeof m.nova_response === 'string' ? m.nova_response.replace(/^🌸 \*\*Nova\*\*: /, '').replace(/^"|"$/g, '') : String(m.nova_response || '')}
@@ -565,6 +584,11 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
       <div className="p-3 bg-slate-950/90 border-t border-slate-800 flex items-center space-x-2">
         {selectedGroup === 'executive_suite' ? (
           <>
+            <VoiceController
+              onTranscriptionReceived={(text) => {
+                setInputPrompt(prev => prev ? `${prev} ${text}` : text);
+              }}
+            />
             <input
               type="text"
               value={inputPrompt}
@@ -585,6 +609,11 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
           </>
         ) : (
           <>
+            <VoiceController
+              onTranscriptionReceived={(text) => {
+                setGroupInput(prev => prev ? `${prev} ${text}` : text);
+              }}
+            />
             <input
               type="text"
               value={groupInput}

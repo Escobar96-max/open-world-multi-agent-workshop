@@ -33,4 +33,6 @@ vlone_sessions/
 
 # Vault Runtime Memories
 vault/Agents/*/memories/
+audio_cache/
+backend/vault/
 
