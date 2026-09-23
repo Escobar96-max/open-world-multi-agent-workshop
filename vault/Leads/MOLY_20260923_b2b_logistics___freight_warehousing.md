@@ -1,7 +1,7 @@
 ---
 title: "Moly OSINT Lead Intelligence Report"
 niche: "B2B Logistics & Freight Warehousing"
-timestamp: 2026-09-23T22:29:57.152810+00:00
+timestamp: 2026-09-23T22:40:26.306616+00:00
 operator: "Operator C2"
 supervisor: "[[Laila]]"
 hunter: "[[Moly]]"
@@ -17,7 +17,7 @@ tags:
 
 - **Supervisor**: [[Laila]] (Executive Operations Lead)
 - **Specialist Hunter**: [[Moly]] (OSINT Lead Specialist)
-- **Harvest Date**: `2026-09-23 22:29:57 UTC`
+- **Harvest Date**: `2026-09-23 22:40:26 UTC`
 - **Verification Engine**: ReacherHQ (Rust 0% Bounce SMTP) + agent-reach Social Intelligence
 - **Total Leads Harvested**: `4`
 
@@ -36,18 +36,18 @@ tags:
 
 ## ⚡ Backstage Live Telemetry
 ```text
-[22:29:51] [Moly] Tier 1 sweep initiated on https://houstonfreight.com
-[22:29:52] [Moly] Tier 2 agent-reach social engagement triggered for 'Houston Freight Hub' (houstonfreight.com)
-[22:29:52] [Moly] Tier 2 agent-reach identified active lead: Elena Rostova (Managing Director & Operations Head)
-[22:29:54] [Moly] ReacherHQ SMTP Handshake (Heuristic check): elena@houstonfreight.com is SAFE.
-[22:29:54] [Moly] Vlone Browser typing row to Google Sheet for Elena Rostova
-[22:29:54] [Moly] Vlone Session simulated row append; Sheet link validated.
-[22:29:54] [Moly] Tier 1 sweep initiated on https://dallascargo.com
-[22:29:54] [Moly] Tier 2 agent-reach social engagement triggered for 'Dallas Cargo Masters' (dallascargo.com)
-[22:29:54] [Moly] Tier 2 agent-reach identified active lead: David Sterling (Chief Executive Officer)
-[22:29:57] [Moly] ReacherHQ SMTP Handshake (Heuristic check): david@dallascargo.com is SAFE.
-[22:29:57] [Moly] Vlone Browser typing row to Google Sheet for David Sterling
-[22:29:57] [Moly] Vlone Session simulated row append; Sheet link validated.
+[22:40:20] [Moly] Tier 1 sweep initiated on https://houstonfreight.com
+[22:40:21] [Moly] Tier 2 agent-reach social engagement triggered for 'Houston Freight Hub' (houstonfreight.com)
+[22:40:21] [Moly] Tier 2 agent-reach identified active lead: Elena Rostova (Managing Director & Operations Head)
+[22:40:23] [Moly] ReacherHQ SMTP Handshake (Heuristic check): elena@houstonfreight.com is SAFE.
+[22:40:23] [Moly] Vlone Browser typing row to Google Sheet for Elena Rostova
+[22:40:23] [Moly] Vlone Session simulated row append; Sheet link validated.
+[22:40:23] [Moly] Tier 1 sweep initiated on https://dallascargo.com
+[22:40:24] [Moly] Tier 2 agent-reach social engagement triggered for 'Dallas Cargo Masters' (dallascargo.com)
+[22:40:24] [Moly] Tier 2 agent-reach identified active lead: David Sterling (Chief Executive Officer)
+[22:40:26] [Moly] ReacherHQ SMTP Handshake (Heuristic check): david@dallascargo.com is SAFE.
+[22:40:26] [Moly] Vlone Browser typing row to Google Sheet for David Sterling
+[22:40:26] [Moly] Vlone Session simulated row append; Sheet link validated.
 ```
 
 *Persisted autonomously to Obsidian Vault by Moly Lead Engine under Laila's supervision.*

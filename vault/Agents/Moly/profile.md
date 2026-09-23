@@ -44,3 +44,7 @@ specialties:
 - **PhoneInfoga**: Carrier & mobile line deliverability validation.
 - **Vlone Browser Sync**: Appends rows into persistent Google Sheets sessions and copies share links.
 - **Obsidian Memory**: Automatically backs up all harvested records to `vault/Leads/MOLY_{date}.md`.
+
+- [[Skill]]: Advanced OSINT Thread Traversal (Verified via Web+YouTube+SoupZero on 2026-09-23 - Task Challenge: 'Mine decision maker reaction graphs on LinkedIn threads') #skill_acquired
+
+- [[Skill]]: Advanced OSINT Thread Traversal (Verified via Web+YouTube+SoupZero on 2026-09-23 - Task Challenge: 'Mine decision maker reaction graphs on LinkedIn threads') #skill_acquired

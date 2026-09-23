@@ -26,6 +26,7 @@ from app.routers.c2_executive import router as c2_router, get_executive_duo
 from app.routers.spatial_router import router as spatial_router, spatial_engine
 from app.routers.vlone_router import router as vlone_router
 from app.routers.sanctum import router as sanctum_router
+from app.routers.training_router import router as training_router
 
 # Open World Subsystems
 try:
@@ -152,6 +153,7 @@ app.include_router(c2_router)
 app.include_router(spatial_router)
 app.include_router(vlone_router)
 app.include_router(sanctum_router)
+app.include_router(training_router)
 
 # Autonomous Open World Routers
 if OPEN_WORLD_AVAILABLE:

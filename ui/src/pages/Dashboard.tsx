@@ -4,8 +4,9 @@ import { TaskKanban } from '../components/TaskKanban';
 import { SpatialGrid } from '../components/SpatialGrid';
 import { VloneConsole } from '../components/VloneConsole';
 import { OpenWorldVisualizer } from '../components/OpenWorldVisualizer';
+import { AgentProfiles } from '../components/AgentProfiles';
 
-type ActiveTab = 'c2_desk' | 'open_world' | 'spatial_grid' | 'vlone_engine';
+type ActiveTab = 'c2_desk' | 'open_world' | 'spatial_grid' | 'vlone_engine' | 'agent_profiles';
 
 export const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('c2_desk');
@@ -78,6 +79,16 @@ export const Dashboard: React.FC = () => {
           >
             <span>⚡</span> VLONE Engine
           </button>
+          <button
+            onClick={() => setActiveTab('agent_profiles')}
+            className={`px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
+              activeTab === 'agent_profiles'
+                ? 'bg-slate-800 text-purple-300 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <span>🎴</span> Agent Profiles
+          </button>
         </div>
 
         {/* Right Status Badges */}
@@ -124,6 +135,12 @@ export const Dashboard: React.FC = () => {
         {activeTab === 'vlone_engine' && (
           <div className="h-full overflow-hidden">
             <VloneConsole />
+          </div>
+        )}
+
+        {activeTab === 'agent_profiles' && (
+          <div className="h-full overflow-hidden">
+            <AgentProfiles />
           </div>
         )}
       </main>
