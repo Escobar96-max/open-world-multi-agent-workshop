@@ -4,13 +4,20 @@ import { Send, Sparkles, Shield, Compass, CheckCircle2, MessageSquare, Terminal,
 interface ChatMessage {
   id: string;
   timestamp: string;
-  prompt: string;
-  operator: string;
+  prompt?: string;
+  operator?: string;
   responder?: string;
+  sender?: string;
   orion_response?: string | null;
   nova_response?: string | null;
   tasks: any[];
   obsidian_vault_note?: string;
+  type?: string;
+  action_required?: {
+    action: string;
+    task_id: string;
+  };
+  options?: string[];
 }
 
 interface Props {
@@ -28,17 +35,42 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
 
   const groups = [
     { id: 'executive_suite', name: '👑 Executive Suite', lead: 'Orion & Nova' },
-    { id: 'marketing_squad', name: '📈 Marketing Squad', lead: 'Growth Lead' },
+    { id: 'marketing_squad', name: '📈 Marketing Squad', lead: 'Laila' },
     { id: 'defense_guard', name: '🛡️ Defense Guard', lead: 'Sentinel Alpha' },
     { id: 'chill_lounge', name: '🎵 432Hz Chill Lounge', lead: 'DJ Frequency' }
   ];
 
-  const quickDirectives = [
-    "Scan partner portal for MAP compliance violations",
-    "Deploy Sentinel Alpha PoW perimeter challenge",
-    "Tune Frequency Lounge to 432Hz restorative harmonic",
-    "Architect Prime: Run dev loop regression and AST patch"
-  ];
+  const getQuickDirectives = () => {
+    switch (selectedGroup) {
+      case 'marketing_squad':
+        return [
+          "Laila: Status update on competitor pricing & MAP compliance",
+          "Laila: Draft partner outreach proposal and analyze competitor pricing",
+          "Laila: Scan affiliate bounty opportunities in market observatory"
+        ];
+      case 'defense_guard':
+        return [
+          "Deploy Sentinel Alpha PoW perimeter challenge",
+          "Audit zero-trust firewall telemetry"
+        ];
+      case 'chill_lounge':
+        return [
+          "Tune Frequency Lounge to 432Hz restorative harmonic",
+          "Check ambient resonance and entrainment state"
+        ];
+      default:
+        return [
+          "Laila: Draft partner outreach proposal and analyze competitor pricing",
+          "Scan partner portal for MAP compliance violations",
+          "Deploy Sentinel Alpha PoW perimeter challenge",
+          "Tune Frequency Lounge to 432Hz restorative harmonic",
+          "Architect Prime: Run dev loop regression and AST patch"
+        ];
+    }
+  };
+
+  const [wsConnected, setWsConnected] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     // Initial welcome message from Orion & Nova
@@ -54,6 +86,100 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
       }
     ]);
   }, []);
+
+  // Real-time Push Notification Bus via WebSocket
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: any = null;
+    let isDisposed = false;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host || '127.0.0.1:8000';
+    const wsUrl = `${protocol}//${host}/api/v1/c2/ws/notifications`;
+
+    const connect = () => {
+      if (isDisposed) return;
+      try {
+        ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          if (isDisposed) return;
+          setWsConnected(true);
+        };
+
+        ws.onmessage = (event) => {
+          if (isDisposed) return;
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'connection_established') {
+              return;
+            }
+
+            // Real-time autonomous notification or question from agents
+            if (
+              data.type === 'task_completed' ||
+              data.type === 'task_needs_approval' ||
+              data.type === 'task_approved' ||
+              data.type === 'agent_notification' ||
+              data.type === 'agent_question'
+            ) {
+              setMessages(prev => {
+                if (prev.some(m => m.id === data.id)) return prev;
+                return [...prev, data];
+              });
+              if (onTaskCreated) onTaskCreated();
+            }
+          } catch (e) {
+            console.error('Error parsing notification message:', e);
+          }
+        };
+
+        ws.onclose = () => {
+          if (isDisposed) return;
+          setWsConnected(false);
+          reconnectTimeout = setTimeout(connect, 3000);
+        };
+
+        ws.onerror = () => {
+          if (ws) ws.close();
+        };
+      } catch (err) {
+        if (!isDisposed) {
+          reconnectTimeout = setTimeout(connect, 3000);
+        }
+      }
+    };
+
+    connect();
+
+    return () => {
+      isDisposed = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (ws) ws.close();
+    };
+  }, [onTaskCreated]);
+
+  const handleApproveInlineTask = async (taskId: string) => {
+    try {
+      const res = await fetch('/api/v1/c2/tasks/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_id: taskId })
+      });
+      if (res.ok) {
+        setMessages(prev => prev.map(m => {
+          if (m.action_required?.task_id === taskId) {
+            return { ...m, action_required: undefined };
+          }
+          return m;
+        }));
+        if (onTaskCreated) onTaskCreated();
+      }
+    } catch (e) {
+      console.error('Failed to approve task inline:', e);
+    }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -89,7 +215,9 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
     const query = textToSend || inputPrompt;
     if (!query.trim() || loading) return;
 
-    setInputPrompt('');
+    if (!textToSend) {
+      setInputPrompt('');
+    }
     setLoading(true);
 
     try {
@@ -136,10 +264,10 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
     }
   };
 
-  const handleSendGroupMessage = async () => {
-    if (!groupInput.trim()) return;
-    const text = groupInput;
-    setGroupInput('');
+  const handleSendGroupMessage = async (textToSend?: string) => {
+    const text = textToSend || groupInput;
+    if (!text.trim()) return;
+    if (!textToSend) setGroupInput('');
 
     try {
       const res = await fetch('/api/v1/c2/group-chat', {
@@ -149,16 +277,25 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setGroupMessages(prev => [...prev, data.entry]);
+        if (data.entries && Array.isArray(data.entries)) {
+          setGroupMessages(prev => [...prev, ...data.entries]);
+        } else if (data.reply_entry) {
+          setGroupMessages(prev => [...prev, data.entry, data.reply_entry]);
+        } else {
+          setGroupMessages(prev => [...prev, data.entry]);
+        }
+        if (onTaskCreated && data.task_created) {
+          onTaskCreated();
+        }
       } else {
-        setGroupInput(text);
+        if (!textToSend) setGroupInput(text);
         setGroupMessages(prev => [
           ...prev,
           { id: String(Date.now()), sender: 'System', text: `Failed to send message: HTTP ${res.status}`, timestamp: new Date().toLocaleTimeString() }
         ]);
       }
     } catch (e) {
-      setGroupInput(text);
+      if (!textToSend) setGroupInput(text);
       setGroupMessages(prev => [
         ...prev,
         { id: String(Date.now()), sender: 'System', text: 'Network error sending group message.', timestamp: new Date().toLocaleTimeString() }
@@ -170,10 +307,18 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
     <div className="flex flex-col h-full bg-slate-900/60 rounded-xl border border-slate-800/80 overflow-hidden shadow-2xl">
       {/* Group Navigation Bar */}
       <div className="flex items-center justify-between px-4 py-3 bg-slate-950/80 border-b border-slate-800">
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2.5">
           <Terminal className="w-5 h-5 text-amber-400 animate-pulse" />
           <span className="text-sm font-bold tracking-wide uppercase text-slate-200">
             Executive Command & Telemetry Feed
+          </span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full border flex items-center gap-1 font-mono ${
+            wsConnected
+              ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
+              : 'bg-rose-950/60 text-rose-400 border-rose-800'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`}></span>
+            {wsConnected ? 'LIVE COMMS' : 'OFFLINE'}
           </span>
         </div>
         <div className="flex space-x-2">
@@ -199,16 +344,31 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
           <>
             {messages.map((m, idx) => (
               <div key={m.id || idx} className="space-y-3">
-                {/* User Prompt */}
-                <div className="flex justify-end">
-                  <div className="max-w-[75%] bg-blue-600/20 border border-blue-500/30 rounded-2xl rounded-tr-sm px-4 py-2.5 text-blue-100 shadow-md">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="text-xs font-semibold text-blue-400">👤 {m.operator}</span>
-                      <span className="text-[10px] text-slate-500">{m.timestamp}</span>
+                {/* User Prompt or Autonomous Banner */}
+                {m.prompt && (
+                  <div className="flex justify-end">
+                    <div className={`max-w-[75%] rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-md ${
+                      m.type === 'task_completed'
+                        ? 'bg-emerald-950/40 border border-emerald-500/40 text-emerald-200'
+                        : m.type === 'task_needs_approval'
+                        ? 'bg-amber-950/50 border border-amber-500/50 text-amber-200'
+                        : m.type === 'agent_question'
+                        ? 'bg-purple-950/40 border border-purple-500/40 text-purple-200'
+                        : 'bg-blue-600/20 border border-blue-500/30 text-blue-100'
+                    }`}>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="text-xs font-semibold">
+                          {m.type === 'task_completed' ? '⚡ Autonomous Event' :
+                           m.type === 'task_needs_approval' ? '⚠️ Clearance Required' :
+                           m.type === 'agent_question' ? '❓ Agent Question' :
+                           `👤 ${m.operator || 'Operator'}`}
+                        </span>
+                        <span className="text-[10px] opacity-70">{m.timestamp}</span>
+                      </div>
+                      <p className="text-sm leading-relaxed">{m.prompt}</p>
                     </div>
-                    <p className="text-sm leading-relaxed">{m.prompt}</p>
                   </div>
-                </div>
+                )}
 
                 {/* Orion Prime Response */}
                 {m.orion_response && (
@@ -313,6 +473,45 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
                     </div>
                   </div>
                 )}
+
+                {/* Interactive Inline Actions for Approval / Questions */}
+                {m.action_required?.action === 'approve_task' && (
+                  <div className="ml-12 max-w-[85%] bg-amber-950/40 border border-amber-500/40 rounded-xl p-3 flex items-center justify-between shadow-lg">
+                    <div className="flex items-center space-x-2">
+                      <Shield className="w-4 h-4 text-amber-400 animate-pulse flex-shrink-0" />
+                      <span className="text-xs font-semibold text-amber-200">
+                        Urgent clearance required for this operation
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleApproveInlineTask(m.action_required!.task_id)}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center space-x-1.5 shadow-md shadow-emerald-950/60 transition-all hover:scale-105 active:scale-95"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Approve Task</span>
+                    </button>
+                  </div>
+                )}
+
+                {m.options && m.options.length > 0 && (
+                  <div className="ml-12 max-w-[85%] bg-purple-950/30 border border-purple-500/30 rounded-xl p-3 space-y-2 shadow-lg">
+                    <div className="flex items-center space-x-1.5 text-xs font-semibold text-purple-300">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Agent Inquiry Options:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {m.options.map((opt, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSendPrompt(opt)}
+                          className="px-3 py-1 bg-purple-500/20 hover:bg-purple-500/40 text-purple-200 hover:text-white border border-purple-500/40 rounded-lg text-xs font-medium transition-all hover:scale-105 active:scale-95"
+                        >
+                          💬 {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </>
@@ -343,20 +542,24 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
       </div>
 
       {/* Quick Prompt Suggestions */}
-      {selectedGroup === 'executive_suite' && (
-        <div className="px-4 py-2 bg-slate-950/40 border-t border-slate-800/60 flex items-center space-x-2 overflow-x-auto">
-          <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0" />
-          {quickDirectives.map((qd, i) => (
-            <button
-              key={i}
-              onClick={() => handleSendPrompt(qd)}
-              className="text-xs whitespace-nowrap bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-amber-300 px-2.5 py-1 rounded-full border border-slate-700/60 transition-colors"
-            >
-              {qd}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="px-4 py-2 bg-slate-950/40 border-t border-slate-800/60 flex items-center space-x-2 overflow-x-auto">
+        <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0" />
+        {getQuickDirectives().map((qd, i) => (
+          <button
+            key={i}
+            onClick={() => {
+              if (selectedGroup === 'executive_suite') {
+                handleSendPrompt(qd);
+              } else {
+                handleSendGroupMessage(qd);
+              }
+            }}
+            className="text-xs whitespace-nowrap bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-amber-300 px-2.5 py-1 rounded-full border border-slate-700/60 transition-colors"
+          >
+            {qd}
+          </button>
+        ))}
+      </div>
 
       {/* Unified Input Bar */}
       <div className="p-3 bg-slate-950/90 border-t border-slate-800 flex items-center space-x-2">
@@ -391,7 +594,7 @@ export const ExecutiveChat: React.FC<Props> = ({ onTaskCreated }) => {
               className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
             />
             <button
-              onClick={handleSendGroupMessage}
+              onClick={() => handleSendGroupMessage()}
               disabled={!groupInput.trim()}
               className="bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-slate-950 font-bold px-4 py-2.5 rounded-xl flex items-center space-x-2 transition-all"
             >

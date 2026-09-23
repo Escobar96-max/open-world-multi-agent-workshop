@@ -49,9 +49,22 @@ export const SpatialGrid: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchState();
-    const interval = setInterval(fetchState, 1500);
-    return () => clearInterval(interval);
+    let timer: any = null;
+    let isDisposed = false;
+
+    const poll = async () => {
+      await fetchState();
+      if (!isDisposed) {
+        timer = setTimeout(poll, 1500);
+      }
+    };
+
+    poll();
+
+    return () => {
+      isDisposed = true;
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   const handleTeleport = async (agentId: string, targetZone: 'plaza' | 'lounge') => {

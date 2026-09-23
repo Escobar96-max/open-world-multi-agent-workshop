@@ -71,7 +71,7 @@ class ConnectionManager:
     async def broadcast(self, message: Dict[str, Any]):
         for connection in list(self.active_connections):
             try:
-                await connection.send_json(message)
+                await asyncio.wait_for(connection.send_json(message), timeout=2.0)
             except Exception:
                 if connection in self.active_connections:
                     self.active_connections.remove(connection)

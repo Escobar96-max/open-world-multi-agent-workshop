@@ -54,3 +54,23 @@ class DJFrequencyNode:
     def set_playback(self, playing: bool) -> Dict[str, Any]:
         self.is_playing = playing
         return self.get_state()
+
+    def modulate_via_laya(self, context_text: str) -> Dict[str, Any]:
+        """
+        Uses Laya non-autoregressive choice primitive to dynamically tune
+        harmonic frequency based on conversation context or cognitive workload.
+        """
+        try:
+            from app.services.laya_decision_engine import get_laya_engine
+            laya = get_laya_engine()
+            choice, _ = laya.ask_choice(
+                state_text=context_text,
+                question="Select harmonic frequency: 432Hz (Restorative), 528Hz (Transformation), 40Hz (Gamma Focus)",
+                options=["432Hz", "528Hz", "40Hz"]
+            )
+            freq_map = {"432Hz": 432, "528Hz": 528, "40Hz": 40}
+            target_freq = freq_map.get(choice, 432)
+            return self.set_frequency(target_freq)
+        except Exception:
+            return self.get_state()
+

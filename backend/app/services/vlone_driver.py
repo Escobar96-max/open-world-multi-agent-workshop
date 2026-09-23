@@ -549,3 +549,36 @@ class VloneDriver:
                 pass
             self._playwright = None
 
+    def check_access_wall(self, page_title: str, text_snippet: str) -> Dict[str, Any]:
+        """
+        Uses Laya non-autoregressive noul primitive to evaluate in ~33ms whether a page
+        displays an access wall, Cloudflare turnstile, or CAPTCHA challenge.
+        """
+        from app.services.laya_decision_engine import get_laya_engine
+        laya = get_laya_engine()
+        confidence = laya.ask_noul(
+            state_text=f"Title: {page_title}. Content: {text_snippet[:300]}",
+            statement="Is this webpage an access restriction wall, Cloudflare turnstile, or CAPTCHA challenge?"
+        )
+        is_blocked = confidence >= 0.85
+        return {
+            "is_blocked": is_blocked,
+            "confidence": confidence,
+            "threshold": 0.85
+        }
+
+    def classify_element_interaction(self, element_tag: str, element_text: str, element_role: str = "") -> str:
+        """
+        Uses Laya choice primitive to classify interactive elements across:
+        CLICK_BUTTON, INPUT_FIELD, DISMISS_MODAL
+        """
+        from app.services.laya_decision_engine import get_laya_engine
+        laya = get_laya_engine()
+        choice, _ = laya.ask_choice(
+            state_text=f"Tag: {element_tag}, Role: {element_role}, Text: '{element_text}'",
+            question="Select action primitive: CLICK_BUTTON, INPUT_FIELD, DISMISS_MODAL",
+            options=["CLICK_BUTTON", "INPUT_FIELD", "DISMISS_MODAL"]
+        )
+        return choice
+
+

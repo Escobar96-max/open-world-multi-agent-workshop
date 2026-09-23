@@ -23,6 +23,11 @@ class VaultSecurityError(Exception):
     pass
 
 
+class EpistemicTruthError(Exception):
+    """Raised when knowledge fails Nova's Laya Epistemic Truth Gate (confidence < 0.90)."""
+    pass
+
+
 class VaultManager:
     """Thread-safe manager for reading and writing to the Obsidian knowledge vault."""
 
@@ -159,6 +164,73 @@ class VaultManager:
 
         return path
 
+    def verify_epistemic_truth(
+        self,
+        source_context: str,
+        statement: str,
+        threshold: float = 0.90
+    ) -> Dict[str, Any]:
+        """
+        Nova PA's Laya Truth Gate:
+        Evaluates calibrated confidence P(true) before committing knowledge to vault.
+        Threshold: 0.90 (90% calibrated confidence).
+        """
+        from app.services.laya_decision_engine import get_laya_engine
+        laya = get_laya_engine()
+        confidence = laya.ask_noul(source_context, statement)
+        verified = confidence >= threshold
+        return {
+            "verified": verified,
+            "confidence": confidence,
+            "threshold": threshold,
+            "statement": statement
+        }
+
+    def append_verified_memory(
+        self,
+        agent_id: str,
+        observation: str,
+        source_context: str,
+        importance_score: int = 8,
+        tags: Optional[List[str]] = None,
+        title: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        threshold: float = 0.90
+    ) -> Path:
+        """
+        Appends memory only after passing Nova's Laya Epistemic Truth Gate.
+        Rejects unverified or hallucinated claims with EpistemicTruthError.
+        """
+        verification = self.verify_epistemic_truth(
+            source_context=source_context,
+            statement=observation,
+            threshold=threshold
+        )
+        if not verification["verified"]:
+            raise EpistemicTruthError(
+                f"Nova Truth Gate Rejected: Confidence {verification['confidence']:.2f} is below threshold {threshold:.2f}."
+            )
+
+        memory_tags = list(tags or [])
+        if "verified_truth" not in memory_tags:
+            memory_tags.append("verified_truth")
+
+        extra_meta = {
+            **(metadata or {}),
+            "epistemic_confidence": verification["confidence"],
+            "verified_by": "Nova_Truth_Gate",
+            "verification_engine": "Laya_Noul"
+        }
+
+        return self.append_memory(
+            agent_id=agent_id,
+            observation=observation,
+            importance=importance_score,
+            tags=memory_tags,
+            title=title,
+            metadata=extra_meta
+        )
+
     def recall_memories(self, agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Recalls the latest memories for an agent."""
         valid_id = self.validate_agent_id(agent_id)
@@ -188,7 +260,12 @@ class VaultManager:
         effective_speaker = speaker or sender or "System"
         lounge_file = self.world_dir / "lounge_logs.md"
         now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-        entry = f"\n- `[{now_str}]` **{effective_speaker}**: {message}\n"
+
+        # Sanitize sensitive patterns (passwords, credentials, auth tokens)
+        sanitized_msg = re.sub(r"(?i)(pass(?:word)?\s*[:=]\s*)[^\s,]+", r"\1[REDACTED]", message)
+        sanitized_msg = re.sub(r"(?i)(pass\s+)\d{4,}", r"\1[REDACTED]", sanitized_msg)
+
+        entry = f"\n- `[{now_str}]` **{effective_speaker}**: {sanitized_msg}\n"
 
         with self._lock:
             if not lounge_file.exists():

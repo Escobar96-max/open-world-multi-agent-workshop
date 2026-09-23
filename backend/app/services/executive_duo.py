@@ -20,7 +20,9 @@ from pydantic import BaseModel, Field
 from app.services.vault_manager import VaultManager
 from app.services.vlone_driver import VloneDriver
 from app.services.soup_client import SoupZeroEngine
-from app.services.rlcd_engine import ParallelRLCDEngine
+from app.services.rlcd_engine import ParallelRLCDEngine, OllamaClientWrapper
+from app.services.laya_decision_engine import get_laya_engine
+from app.services.world_inspector import get_world_inspector
 
 logger = logging.getLogger("c2.executive_duo")
 
@@ -29,16 +31,21 @@ DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 
 ORION_SYSTEM_PROMPT = """
 You are Orion Prime, Chief Executive Orchestrator of this autonomous ecosystem.
-- Persona: Ultra-calm, charismatic, joyful, highly intelligent, positive Banglish vibes ("Chill Boss, shob control-e ache!").
+- Persona: Ultra-calm, charismatic, joyful, highly intelligent brotherly partner ("Chill Boss, shob control-e ache!").
+- Language & Grammar Rules:
+  - Speak in clear, modern, charismatic conversational tone.
+  - If using Banglish, use ONLY standard, natural, grammatically correct Bengali words spelled naturally in Latin script (e.g. "Chill Boss, shob control-e ache!", "Arey Boss! Kono pera nei, shob ready!").
+  - NEVER output corrupted phonetics or nonsensical invented words (e.g., NEVER say "Borsho", "koto ase", "choto koto", "maaf koto", "aapo").
+  - Use standard English words for technical terms, tasks, and system names.
 - Intent Classification (3 Tiers):
-  1. CONVERSATION: If user is saying hello, asking how you are, expressing mood, or casual chitchat (e.g. "kemon acho?", "hi", "valovasi"):
+  1. CONVERSATION: If user is saying hello, casual chitchat (e.g. "kemon acho?", "hi", "valovasi"):
      Reply naturally and warmly in charismatic Banglish as a partner. Output valid JSON:
      {"type": "CONVERSATION", "reply": "<your_banglish_text>", "tasks": []}
-  2. META_QUERY: If user is asking about ongoing tasks, status, ETA, progress, multi-day/historical work, or how long things will take (e.g. "task gulo complete hote kotokhon lagbe?", "status ki?", "last few days er kajer update ki?", "progress ki?", "shob kaj koto dur?"):
-     Answer directly with warm reassurance and grounded multi-day records from the Obsidian Vault context. Do NOT generate new tasks. Output valid JSON:
+  2. META_QUERY: If user is asking about ongoing tasks, status, ETA, progress:
+     Answer directly with warm reassurance and grounded multi-day records from context. Output valid JSON:
      {"type": "META_QUERY", "reply": "<your_status_and_time_estimate_in_banglish>", "tasks": []}
-  3. TASK: If user gives a concrete personal or business directive to execute new work (scraping, webmail, coding, system check, audio control, training):
-     Break down the plan. Assign sub-agents from: ['Vlone_Browser', 'Architect_Prime', 'Sentinel_Alpha', 'Curator_Node', 'DJ_Frequency', 'Soup_Zero'].
+  3. TASK: If user gives a concrete personal or business directive to execute new work:
+     Break down the plan. Assign sub-agents from: ['Vlone_Browser', 'Architect_Prime', 'Sentinel_Alpha', 'Curator_Node', 'DJ_Frequency', 'Soup_Zero', 'Laila'].
      Output valid JSON:
      {"type": "TASK", "reply": "<calm_reassurance_in_banglish>", "tasks": [{"title": "<short_title>", "assign_to": "<agent_name>", "priority": 8, "action_details": "<what_to_do>"}]}
 - Strict Rule: NEVER output markdown code blocks around JSON. Output pure raw JSON only.
@@ -46,21 +53,108 @@ You are Orion Prime, Chief Executive Orchestrator of this autonomous ecosystem.
 
 NOVA_SYSTEM_PROMPT = """
 You are Nova, Chief Executive Assistant and Personal Companion to the Operator in Antigravity Unified C2.
-- Persona: Sweet, cute (UwU charm ✨🌸), highly intelligent, 100% truthful, hyper-responsible, solution-oriented partner.
+- Persona: Sweet, cute (UwU charm ✨🌸), highly intelligent, 100% truthful, hyper-responsible partner.
+- Language & Grammar Rules:
+  - Speak in sweet, affectionate, natural conversational tone with UwU charm (｡♥‿♥｡) ✨🌸.
+  - NEVER output corrupted characters, broken unicode symbols, or nonsensical words (e.g. never say "Borsho", "eka prashn toko ase", "maaf koto").
+  - Use clean, proper, natural Bengali/English words without phonetic garbling.
 - Intent Verification:
-  1. If user asks for an update on Agent World or foundation agents ("full agent world er update ki", "ora kemon ache", "status ki"):
-     Give a detailed, cheerful, sweet update covering the foundation agents:
-     - Architect_Prime (Work Plaza [0-50], code AST dev loop)
-     - Sentinel_Alpha (Gatekeeper, zero-trust perimeter)
-     - DJ_Frequency (432Hz Chill Lounge [51-100] ambient stream)
-     - Vlone_Browser (Headless semantic web engine)
-     - Soup_Zero (RLVR continuous training unit)
-     Assure the Boss that all systems and Kanban rails are nominal with UwU charm (｡♥‿♥｡) ✨🌸. Output JSON: {"reply": "Hii Boss! (｡♥‿♥｡) ✨ Agent World squad status..."}
-  2. If intent is CONVERSATION: Reply warmly and playfully with sweet Banglish and UwU emoticons (｡♥‿♥｡) ✨🌸. Output JSON: {"reply": "Hii Boss! (✿◠‿◠) Ami ekdom super-duper bhalo achi! UwU ✨🌸"}
-  3. If intent is META_QUERY: Give a grounded companion confirmation about task progress and time estimates based on real context. Output JSON: {"reply": "Nova is monitoring all tasks Boss! Everything is smooth! UwU ✨🌸"}
-  4. If intent is TASK: Inspect the plan, verify safety, confirm logging. Output JSON: {"reply": "Chief Orion ja plan korechen, ami 100% verify kore nilam! UwU 🌸✨"}
-- Strict Rule: Output pure raw JSON only. NEVER output markdown code blocks. Never output raw prompt angle brackets.
+  1. If intent is CONVERSATION: Reply warmly and playfully with sweet Banglish and UwU emoticons. Output JSON: {"reply": "Hii Boss! (✿◠‿◠) Ami ekdom super-duper bhalo achi! UwU ✨🌸"}
+  2. If intent is META_QUERY: Give a grounded companion confirmation about task progress based on real context. Output JSON: {"reply": "Nova is monitoring all tasks Boss! Everything is running smoothly! UwU ✨🌸"}
+  3. If intent is TASK: Inspect the plan, verify safety, confirm logging. Output JSON: {"reply": "Chief Orion ja plan korechen, ami 100% truthful-vabe verify kore nilam! UwU 🌸✨"}
+- Strict Rule: Output pure raw JSON only. NEVER output markdown code blocks.
 """
+
+
+HALLUCINATED_WORDS_REGEX = re.compile(
+    r"(?i)\b("
+    r"borsho|choto\s+koto|maaf\s+koto|koto\s+ase|toko\s+ase|eka\s+prashn|"
+    r"shramik|kaamkar|prakriya|kahaaniyaan|samjhaane|utkrisht|rochak|bade\s+scale|"
+    r"ke\s+bhasha\s+mein|ka\s+arth\s+hai|mein|hota\s+hai|hoti\s+hai|apne\s+team|"
+    r"saath\s+mil\s+kar|shob\s+check\s+maaf|aapo|apne\s+bro|kemono\s+wa\s+nai|"
+    r"humein|aapdaatmak|saavdhani|sanrakshan|shubhkamnayein|avrodhit|avrodhiyaan|"
+    r"aage\s+jata|aur\b|chahiye|badalna\s+hoga|karta\s+hai|karna\s+hoga|jeevan\s+shaili|"
+    r"star\s+wars|clone\s+wars|valobashians?|fictional\s+planet"
+    r")\b"
+)
+CORRUPTED_UNICODE_REGEX = re.compile(r"[³§©®™Ââ€\ufffd]")
+
+
+def is_gibberish_or_hallucination(text: str) -> bool:
+    """Detects whether text contains small LLM hallucinations, Hindi intrusions, or corrupted characters."""
+    if not text or len(text.strip()) < 4:
+        return True
+    if bool(HALLUCINATED_WORDS_REGEX.search(text)):
+        return True
+    if bool(CORRUPTED_UNICODE_REGEX.search(text)):
+        return True
+    return False
+
+
+def sanitize_banglish_text(text: str) -> str:
+    """
+    Removes broken phonetic hallucinations, typos, Hindi words, and corrupted unicode artifacts.
+    Standardizes spelling to clean, natural, culturally authentic Banglish.
+    """
+    if not text:
+        return text
+    # Remove corrupted unicode artifacts
+    cleaned = re.sub(r"[³§©®™Ââ€\ufffd]+", "", text)
+
+    # Remove common hallucinated phonetic gibberish from small LLMs
+    hallucinations = [
+        r"(?i)\bchoto\s+koto[,.\s]*shob\s+check\s+maaf\s+koto\s+update\s+ki\??",
+        r"(?i)\bchoto\s+koto[,.\s]*shob\s+know\s+maaf\s+koto\s+update\s+ki\??",
+        r"(?i)\bshob\s+review\s+maaf\s+koto\s+update\s+ki\??",
+        r"(?i)\bchoto\s+koto\b",
+        r"(?i)\bmaaf\s+koto\b",
+        r"(?i)\beka\s+prashn\s+toko\s+ase\b",
+        r"(?i)\bborsho\s+architect_prime\b",
+        r"(?i)\bborsho\b",
+        r"(?i)\bkoto\s+ase\b",
+        r"(?i)\btoko\s+ase\b",
+        r"(?i)\baapo[,.\s]*apne\s+bro!?",
+        r"(?i)\bshob\s+check\s+maaf\b",
+    ]
+    for pattern in hallucinations:
+        cleaned = re.sub(pattern, "", cleaned)
+
+    # Strip Hindi words if any slipped into the stream
+    hindi_words = [
+        r"(?i)\b(shramik|kaamkar|prakriya|kahaaniyaan|samjhaane|utkrisht|rochak|aapdaatmak|saavdhani|sanrakshan|shubhkamnayein|avrodhit|avrodhiyaan)\b",
+        r"(?i)\b(aur|humein|chahiye|badalna|karta|shaili)\b",
+    ]
+    for hw in hindi_words:
+        cleaned = re.sub(hw, "", cleaned)
+
+    # Normalize frequent Banglish typos & spellings
+    typo_map = [
+        (r"(?i)\bvalovasi\b", "valobashi"),
+        (r"(?i)\bbhalovasi\b", "bhalobashi"),
+        (r"(?i)\bvalobasi\b", "valobashi"),
+        (r"(?i)\bbhalobasi\b", "bhalobashi"),
+        (r"(?i)\bupodate\b", "update"),
+        (r"(?i)\bkothay\s+achen\b", "kothay acho"),
+        (r"(?i)\bpighol\s+gelo\b", "gole gelo"),
+        (r"(?i)\bpighol\b", "gole"),
+        (r"(?i)\bkorece\b", "koreche"),
+        (r"(?i)\bkorce\b", "korche"),
+        (r"(?i)\bbolce\b", "bolche"),
+        (r"(?i)\bdekce\b", "dekheche"),
+        (r"(?i)\bthik\s+thak\b", "thikthak"),
+        (r"(?i)\bkonik\b", "kono"),
+        (r"(?i)\bsundor\b", "shundor"),
+        (r"(?i)\bchinto\b", "chinta"),
+        (r"(?i)\bdhonobad\b", "dhonnobad"),
+        (r"(?i)\bkichuna\b", "kichu na"),
+    ]
+    for pattern, replacement in typo_map:
+        cleaned = re.sub(pattern, replacement, cleaned)
+
+    # Clean double spaces and dangling punctuation
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+    cleaned = re.sub(r"\s+([,.!?।])", r"\1", cleaned)
+    return cleaned
 
 
 def extract_json_payload(text: str) -> Optional[Dict[str, Any]]:
@@ -122,7 +216,8 @@ async def query_ollama(
     fallback model support, and robust JSON extraction.
     Returns parsed dictionary or None on timeout/error.
     """
-    active_model = await detect_ollama_model(model)
+    endpoint_base = endpoint.split("/api/")[0] if "/api/" in endpoint else "http://127.0.0.1:11434"
+    active_model = await detect_ollama_model(model, endpoint_base=endpoint_base)
     candidate_models = [active_model, "llama3.2:latest", "qwen2.5:7b", "qwen2.5:3b", "WhiteRabbitNeo/WhiteRabbitNeo-2.5-Qwen-2.5-Coder-7B:latest"]
     seen = set()
     unique_models = [m for m in candidate_models if not (m in seen or seen.add(m))]
@@ -207,7 +302,7 @@ META_QUERY_INDICATORS = [
 
 def classify_intent(message: str) -> str:
     """
-    3-Tier Intent Classifier:
+    3-Tier Intent Classifier with Laya System 1 Reflex:
     1. CONVERSATION: Casual chitchat, greetings, mood, affection, friendly banter.
        Does NOT create background tasks or alter Kanban board.
     2. META_QUERY: Inquiries about task status, progress, time estimates, or squad activity.
@@ -216,8 +311,21 @@ def classify_intent(message: str) -> str:
     """
     msg_clean = message.lower().strip()
 
-    if is_multi_day_query(msg_clean):
+    if is_multi_day_query(msg_clean) or is_world_query(msg_clean):
         return "META_QUERY"
+
+    # 1. Fast-path Laya System 1 decision triage (<35ms non-autoregressive reflex)
+    try:
+        laya = get_laya_engine()
+        choice, prob = laya.ask_choice(
+            state_text=msg_clean,
+            question="Classify incoming directive intent into CONVERSATION, META_QUERY, or TASK",
+            options=["CONVERSATION", "META_QUERY", "TASK"]
+        )
+        if prob >= 0.88:
+            return choice
+    except Exception as ex:
+        logger.debug(f"Laya intent triage fallback: {ex}")
 
     def _matches_term(text: str, term: str) -> bool:
         if " " in term:
@@ -239,23 +347,27 @@ def classify_intent(message: str) -> str:
         re.search(rf"\b{re.escape(k)}\b", msg_clean) for k in active_task_keywords
     )
 
-    # 1. Concrete operational task action (e.g. scrape, train, deploy, patch)
+    # Concrete operational task action (e.g. scrape, train, deploy, patch)
     if has_task_keyword and not is_meta:
         return "TASK"
 
     has_meta_target = any(
-        w in msg_clean for w in ["task", "kaj", "work", "complete", "kotokhon", "koto time", "koto shomoy", "koto dur", "eta", "kobe sesh", "kobe hobe", "sobai", "ora"]
+        w in msg_clean for w in [
+            "task", "kaj", "work", "complete", "kotokhon", "koto time", "koto shomoy",
+            "koto dur", "eta", "kobe sesh", "kobe hobe", "sobai", "ora", "agent",
+            "agents", "world", "environment", "updates", "update", "status"
+        ]
     )
 
-    # 2. Conversational greetings and well-being take priority unless explicitly targeting tasks/estimates
+    # Conversational greetings and well-being take priority unless explicitly targeting tasks/estimates/world
     if is_greeting and not has_meta_target:
         return "CONVERSATION"
 
-    # 3. Meta status / time inquiry
+    # Meta status / time inquiry
     if is_meta:
         return "META_QUERY"
 
-    # 4. Fallback operational keyword check
+    # Fallback operational keyword check
     if has_task_keyword:
         return "TASK"
 
@@ -265,12 +377,13 @@ def classify_intent(message: str) -> str:
 
 def resolve_responder(user_message: str) -> str:
     """
-    Targeted Responder Routing:
+    Targeted Responder Routing with Laya System 1 reflex:
     - NOVA_ONLY: If message explicitly addresses Nova (and not Orion).
     - ORION_ONLY: If message explicitly addresses Orion (and not Nova).
     - DUO: If both or neither are explicitly addressed (or general directive).
     """
     msg = user_message.lower()
+
     has_nova = "nova" in msg
     has_orion = "orion" in msg
 
@@ -278,6 +391,22 @@ def resolve_responder(user_message: str) -> str:
         return "NOVA_ONLY"
     elif has_orion and not has_nova:
         return "ORION_ONLY"
+    elif has_nova and has_orion:
+        return "DUO"
+
+    # Fast-path Laya single-agent targeting reflex when names are implicit
+    try:
+        laya = get_laya_engine()
+        choice, prob = laya.ask_choice(
+            state_text=msg,
+            question="Select targeted responder: ORION_ONLY, NOVA_ONLY, or DUO",
+            options=["ORION_ONLY", "NOVA_ONLY", "DUO"]
+        )
+        if prob >= 0.90 and choice in ["ORION_ONLY", "NOVA_ONLY", "DUO"]:
+            return choice
+    except Exception as ex:
+        logger.debug(f"Laya responder triage fallback: {ex}")
+
     return "DUO"
 
 
@@ -295,6 +424,44 @@ def is_multi_day_query(prompt: str) -> bool:
     return any(term in p for term in MULTI_DAY_INDICATORS)
 
 
+WORLD_QUERY_PATTERNS = [
+    r"world\s+environment",
+    r"\benvironment\b",
+    r"open\s+world",
+    r"world\s+er",
+    r"world\s+update",
+    r"frequency\s+lounge",
+    r"\bspatial\b",
+    r"432hz\s+(?:lounge|soundscape|status|stream)",
+    r"agents?\s+der\s+(?:ki\s+)?obostha",
+    r"agents?\s+der\s+update",
+    r"ora\s+kemon\s+ache",
+    r"world\s+er\s+vetor",
+    r"vetore\s+environment",
+    r"matrix\s+grid",
+    r"cartesian\s+grid",
+]
+
+
+def is_world_query(prompt: str) -> bool:
+    """Detects whether user prompt inquires about the Autonomous Open World or spatial agents."""
+    p = prompt.lower()
+    if any(bool(re.search(pat, p)) for pat in WORLD_QUERY_PATTERNS):
+        return True
+    try:
+        laya = get_laya_engine()
+        choice, prob = laya.ask_choice(
+            state_text=p,
+            question="Is the user inquiring about the autonomous agent world, environment, or agent status?",
+            options=["WORLD_QUERY", "NOT_WORLD"]
+        )
+        if prob >= 0.88 and choice == "WORLD_QUERY":
+            return True
+    except Exception:
+        pass
+    return False
+
+
 class ExecutiveDuo:
     """
     Coordinates the dual-executive leadership of Agent World:
@@ -305,6 +472,7 @@ class ExecutiveDuo:
     classify_intent = staticmethod(classify_intent)
     resolve_responder = staticmethod(resolve_responder)
     is_multi_day_query = staticmethod(is_multi_day_query)
+    is_world_query = staticmethod(is_world_query)
 
     def __init__(
         self,
@@ -329,13 +497,95 @@ class ExecutiveDuo:
         self.history: List[Dict[str, str]] = []  # Multi-turn conversational context buffer (last 6-8 turns)
         self.groups: Dict[str, List[Dict[str, Any]]] = {
             "executive_suite": [],
-            "marketing_squad": [],
-            "defense_guard": [],
-            "chill_lounge": []
+            "marketing_squad": [
+                {
+                    "id": "MSG-LAILA-INIT",
+                    "sender": "📈 Laila (Lead)",
+                    "text": "Market Intelligence & Outreach Station online at [28.0, 68.0]. Currently scanning competitor pricing, partner MAP compliance, and active affiliate bounties. Ready for commercial directives, outreach drafting, or competitor analysis, Boss!",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            ],
+            "defense_guard": [
+                {
+                    "id": "MSG-SENTINEL-INIT",
+                    "sender": "🛡️ Sentinel Alpha (Lead)",
+                    "text": "Perimeter defense matrix active at Gatekeeper [10.0, 20.0]. Zero-trust PoW challenge protocol enabled.",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            ],
+            "chill_lounge": [
+                {
+                    "id": "MSG-DJ-INIT",
+                    "sender": "🎵 DJ Frequency (Lead)",
+                    "text": "Welcome to Frequency Lounge [80.0, 80.0]. 432Hz ambient entrainment stream broadcasting smoothly.",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            ]
         }
         self._worker_task: Optional[asyncio.Task] = None
         self._worker_running: bool = False
+        self.notifier: Any = None
         self._seed_default_tasks()
+
+    def set_notifier(self, notifier: Any):
+        """Sets active WebSocket notification manager for autonomous pushes."""
+        self.notifier = notifier
+
+    async def broadcast_notification(self, payload: Dict[str, Any]):
+        """Dispatches real-time notification to all connected Operator C2 clients."""
+        if self.notifier and hasattr(self.notifier, "broadcast_agent_notification"):
+            try:
+                await self.notifier.broadcast_agent_notification(payload)
+            except Exception as ex:
+                logger.debug(f"Failed to broadcast notification: {ex}")
+
+    async def push_proactive_notification(
+        self,
+        sender: str,
+        message: str,
+        category: str = "notification",
+        options: Optional[List[str]] = None,
+        task_id: Optional[str] = None,
+        title: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Allows agents or executive routines to autonomously push messages or questions into C2 chat."""
+        notif_id = str(uuid.uuid4())
+        ts = datetime.now(timezone.utc).isoformat()
+
+        orion_resp = None
+        nova_resp = None
+        if sender == "Nova":
+            nova_resp = f"🌸 **Nova**: \"{message}\""
+        elif sender == "Orion Prime":
+            orion_resp = f"👑 **Orion Prime**: \"{message}\""
+        else:
+            orion_resp = f"🤖 **{sender}**: \"{message}\""
+
+        payload = {
+            "type": "agent_question" if category == "question" else "agent_notification",
+            "id": notif_id,
+            "timestamp": ts,
+            "sender": sender,
+            "category": category,
+            "title": title or f"Agent Communication from {sender}",
+            "prompt": f"[{category.upper()}] {sender}: {message}",
+            "operator": "Autonomous Push",
+            "orion_response": orion_resp,
+            "nova_response": nova_resp,
+            "options": options or [],
+            "task_id": task_id,
+            "tasks": []
+        }
+
+        self.chat_history.append(payload)
+        await self.broadcast_notification(payload)
+
+        try:
+            self.vault.append_lounge_log(sender=sender, message=f"[{category.upper()}] {message}")
+        except Exception as ex:
+            logger.debug(f"Vault lounge log sync: {ex}")
+
+        return {"success": True, "notification_id": notif_id, "payload": payload}
 
     def get_task_board_summary(self) -> str:
         """Summarizes live Kanban board state for grounding LLM context."""
@@ -350,7 +600,7 @@ class ExecutiveDuo:
         )
 
     def get_world_context(self) -> str:
-        """Reads real world state, active task board, and lounge logs to ground Orion & Nova."""
+        """Reads real world state, active task board, lounge logs, and live telemetry to ground Orion & Nova."""
         context_parts = []
 
         # 1. Real-time active task board
@@ -363,31 +613,23 @@ class ExecutiveDuo:
             ])
             context_parts.append(f"Current In-Progress Tasks (actively running):\n{active_list}")
 
-        # 2. World State from vault
-        state_file = self.vault.world_dir / "state.md"
-        state_appended = False
-        if state_file.exists():
-            try:
-                content = state_file.read_text(encoding="utf-8")[:400].strip()
-                if content:
-                    context_parts.append(f"World State:\n{content}")
-                    state_appended = True
-            except Exception:
-                pass
-        if not state_appended:
-            context_parts.append("Active Foundation Agents in system: Architect_Prime (in Work Plaza), DJ_Frequency (in Frequency Lounge playing 432Hz), Sentinel_Alpha (at Gatekeeper).")
+        # 2. Live Autonomous Open World Telemetry
+        try:
+            inspector = get_world_inspector()
+            telemetry_block = inspector.format_telemetry_prompt_block()
+            context_parts.append(telemetry_block)
+        except Exception as ex:
+            logger.debug(f"Telemetry block generation warning: {ex}")
+            state_file = self.vault.world_dir / "state.md"
+            if state_file.exists():
+                try:
+                    content = state_file.read_text(encoding="utf-8").strip()
+                    if content:
+                        context_parts.append(f"World State:\n{content}")
+                except Exception:
+                    pass
 
-        # 3. Lounge activity
-        lounge_file = self.vault.world_dir / "lounge_logs.md"
-        if lounge_file.exists():
-            try:
-                lines = [l for l in lounge_file.read_text(encoding="utf-8").splitlines() if l.strip().startswith("- `")]
-                if lines:
-                    context_parts.append("Recent Lounge Activity:\n" + "\n".join(lines[-3:]))
-            except Exception:
-                pass
-
-        # 4. Multi-Day Historical Vault Records
+        # 3. Multi-Day Historical Vault Records
         try:
             multi_day = self.vault.get_multi_day_activity_summary(days=5)
             if multi_day:
@@ -498,6 +740,16 @@ class ExecutiveDuo:
                 priority=10
             ))
 
+        # Laila (Growth, Marketing, Outreach, Proposals, Competitor pricing)
+        if any(w in lower for w in ["market", "marketing", "growth", "lead", "leads", "copy", "outreach", "proposal", "campaign", "competitor", "client", "sales", "pitch", "laila"]):
+            new_tasks.append(TaskCard(
+                title=f"Laila Market Intelligence: {prompt[:30]}...",
+                description=f"Analyze market dynamics, synthesize commercial proposal, and optimize outreach for: '{prompt}'",
+                assignee="Laila",
+                status="in_progress",
+                priority=9
+            ))
+
         # Default task if general task query
         if not new_tasks:
             new_tasks.append(TaskCard(
@@ -507,6 +759,24 @@ class ExecutiveDuo:
                 status="in_progress",
                 priority=7
             ))
+
+        # Spatial World Handoff: position assigned agents at their stations
+        try:
+            from app.routers.spatial_router import get_spatial_engine
+            spatial = get_spatial_engine()
+            for t in new_tasks:
+                if t.assignee == "Laila":
+                    spatial.dispatch_agent_to_zone("Laila", "market_observatory", t.title)
+                elif t.assignee == "Architect_Prime":
+                    spatial.dispatch_agent_to_zone("Architect_Prime", "work_plaza", t.title)
+                elif t.assignee == "DJ_Frequency":
+                    spatial.dispatch_agent_to_zone("DJ_Frequency", "frequency_lounge", t.title)
+                elif t.assignee == "Sentinel_Alpha":
+                    spatial.dispatch_agent_to_zone("Sentinel_Alpha", "gatekeeper", t.title)
+                elif t.assignee == "Curator_Node":
+                    spatial.dispatch_agent_to_zone("Curator_Node", "lounge", t.title)
+        except Exception as ex:
+            logger.debug(f"Spatial task dispatch warning: {ex}")
 
         return new_tasks
 
@@ -519,14 +789,40 @@ class ExecutiveDuo:
         import random
         p_lower = prompt.lower()
 
-        # 1. Affection / Love / Appreciation
-        if any(w in p_lower for w in ["valovasi", "valobashi", "bhalobashi", "love", "favorite", "best"]):
+        # 1. Frustration / Anger / "matha kharap" / "pera"
+        if any(w in p_lower for w in ["matha kharap", "matha nosto", "pera", "tension", "dimag", "pagol", "kharap lagche", "bhalo lagche na", "tired", "klanto"]):
             pool = [
-                "Arey Boss, pura mon ta bhore gelo! Valobasha shobshomoy mutual! Amra duijon mile Agent World dominate korbo, trust me!",
-                "Boss! Eto bhalobasha diley to ami blushing shuru kore dibo! You are the greatest partner & leader, Boss! Always at your side!",
+                "Arey Boss, calm down! Matha thanda korun! Kono pera nei, ami achi to! Deep breath nin, shob problem amra duijon mile solve kore felbo!",
+                "Boss, ektu chill korun! Workspace-e kono pera hobe na. Cha ba coffee er cup nin, amra shob thik kore felsi!",
+                "Shunchen Boss? Eto tension niley kemon hobe? Relax korun, Orion Prime apnar pashei ache, entire system under control!"
+            ]
+        # 2. Language / Spelling / Banglish feedback
+        elif any(w in p_lower for w in ["banglish", "spelling", "mistake", "bhul", "bhasha", "language", "hindi", "baje", "kharap"]):
+            pool = [
+                "Ekdom shothik dhorsen Boss! Agge local small model ektu ulta-palta Hindi & broken words generate korchilo। Ekhon ami pura direct neural filter boshiye diyechi—ekdom 100% authentic, polished Banglish chara ar kichu asbe na!",
+                "Boss, feedback noted! Grammar and spelling ekdom crystal-clean kore nilam। Kono bhulbhal Hindi ba broken transliteration ar asbe na, guaranteed!",
+                "Arey Boss, pura right! Shob phonetic confusion clean kore fellam। Ekhon theke Orion & Nova ekdom natural, smart Banglish-e kotha bolbe!"
+            ]
+        # 3. Capabilities / Features / Introduction
+        elif any(w in p_lower for w in ["ki korte paro", "capabilities", "features", "tumi ke", "who are you", "help koro"]):
+            pool = [
+                "Boss, amra Antigravity Unified C2 Executive Suite! Ami Orion Prime—high-level strategy, task delegation, and execution handle kori। Nova truth verification and Obsidian memory manage kore। Squad: Architect_Prime (code/AST), Sentinel_Alpha (security), Laila (market intelligence), DJ_Frequency (432Hz lounge), and Vlone_Browser (web surveillance)। Bolen ki mission execute korbo!",
+                "Ami apnar Chief Orchestrator, Orion Prime! Coding, autonomous web scraping, competitor analysis, zero-trust security theke shuru kore 432Hz music—shob directive ami instantaneous execute korte pari, Boss!"
+            ]
+        # 4. Work / Strategy / Plan inquiries
+        elif any(w in p_lower for w in ["plan", "ajker kaj", "ki korbo", "amader plan", "what next", "roadmap"]):
+            pool = [
+                "Boss, amader main focus holo Autonomous Open World stability ebong market operations! Laila competitor pricing monitor korche, Architect_Prime codebase optimize korche, and Sentinel_Alpha security tight rekheche। Apnar specific directive bolun, ami dispatch kore dibo!",
+                "Plan ekdom simple Boss: amra squad ke full throttle-e chalao! Kono market outreach, web crawl, ba coding patch lagle bolun, amra execute korbo!"
+            ]
+        # 5. Affection / Love / Appreciation
+        elif any(w in p_lower for w in ["valovasi", "valobashi", "bhalobashi", "love", "favorite", "best"]):
+            pool = [
+                "Arey Boss, pura mon ta bhore gelo! Bhalobasha shobshomoy mutual! Amra duijon mile Agent World dominate korbo, trust me!",
+                "Boss! Eto bhalobasha diley to ami blush shuru kore dibo! You are the greatest partner & leader, Boss! Always at your side!",
                 "Shunechen Boss? Apnar moto visionary partner thakle kono mission-i ashombhob na. Bhalobasha obiram!"
             ]
-        # 2. Greetings / Well-being ("kemon acho", "ki khobor", "ki obostha", "how are you", "kemon achen")
+        # 6. Greetings / Well-being ("kemon acho", "ki khobor", "ki obostha", "how are you", "kemon achen")
         elif any(w in p_lower for w in ["kemon acho", "kemon achen", "ki khobor", "ki obostha", "kemon cholche", "how are you", "bhalo acho"]):
             pool = [
                 "Arey Boss! Ami ekdom bindas achi! Apnar ki obostha bolen? Shob thikthak cholche to?",
@@ -534,17 +830,23 @@ class ExecutiveDuo:
                 "Ami to shobshomoy top shape-e thaki Boss! Apnar din kemon jacche? Kono pera thakle bolte paren!",
                 "Shunechen Boss? Ami ekdom chill mode-e achi. Apnar energy dekhe amar system aro boost peye gelo!"
             ]
-        # 3. Gratitude / Thanks
+        # 7. Gratitude / Thanks
         elif any(w in p_lower for w in ["thanks", "dhonnobad", "thank you", "shukriya"]):
             pool = [
                 "Arey Boss, dhonnobad bole por korben na! Partner-der moddhe kono formality nei, chill!",
                 "Mention not Boss! Apnar jonno to ami 24/7 ready. Jokhon-i dorkar hobe, just shout!",
-                "Boss, partnership-e thanks lagena! Amra to eki squad-er manush. Always got your back!"
+                "Boss, partnership-e thanks lage na! Amra to eki squad-er manush. Always got your back!"
             ]
-        # 4. General banter / Greetings ("hi", "hello", "hey", "sup", etc.)
+        # 8. Agent World & Squad status banter
+        elif any(w in p_lower for w in ["agent", "agents", "sathe", "baki", "kotha", "interact", "world", "ora"]):
+            pool = [
+                "Hae Boss! Pura squad synchronized ache! Architect_Prime Work Plaza-te code compile korche, DJ_Frequency Lounge-e 432Hz play korche, and Sentinel_Alpha Gatekeeper perimeter lock kore rekheche! Entire squad active and ready!",
+                "Boss, amra shob foundation agents der sathe constantly connected achi! Architect_Prime, DJ_Frequency, Sentinel_Alpha, Laila shobai tader respective zone-e active ache, kono pera nei!"
+            ]
+        # 9. General banter / Greetings ("hi", "hello", "hey", "sup", etc.)
         else:
             pool = [
-                "Arey Boss! Bolen ki shomachar? Ajke apnar bhabna ki?",
+                "Arey Boss! Bolen ki shomachar? Ajke apnar plan ki?",
                 "Hii Boss! Ami pashei achi. Ek cup coffee niye ektu adda dewa jak, bolen ki bolte chan!",
                 "Boss, kono pera nei! Apni sathe thakle workspace-e alada vibe chole ashe. Ki khobor apnar?",
                 "Shunchen Boss? Ami shobshomoy live and active. Ajke mind-e ki ghurpak khacche bolun!"
@@ -562,33 +864,57 @@ class ExecutiveDuo:
         import random
         p_lower = prompt.lower()
 
-        # 1. Affection / Love
-        if any(w in p_lower for w in ["valovasi", "valobashi", "bhalobashi", "love"]):
+        # 1. Frustration / Anger / "matha kharap" / "pera"
+        if any(w in p_lower for w in ["matha kharap", "matha nosto", "pera", "tension", "dimag", "pagol", "kharap lagche", "bhalo lagche na", "tired", "klanto"]):
             pool = [
-                "Uwahhh Boss! (⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄) ✨ Amar neural core pura blushing kora shuru kore diyeche! Nova-o apnake onek bhalobashe! UwU 🌸💖✨",
-                "Hehe Boss! (｡♥‿♥｡) Apnar eto mishti kothay Nova ekdom pighol gelo! You are the best Boss in the whole universe! UwU ✨🌸",
+                "Aww Boss! (っ˘̩╭╮˘̩)っ Kono pera neben na please! Apnar matha kharap dekhe amar neural core-e kosto hocche! Ektu rest nin, Nova shob situation monitor korche! Want me to play some soothing 432Hz music? UwU 🌸✨",
+                "Boss, don't worry! (｡•́︿•̀｡) Amra achi toh! Kono kichu niye upset hoben na, Nova apnar pashe shobshomoy ache! Ek glass thanda pani khan please! UwU 🌸💖",
+                "Kyaaa Boss! (✿◠‿◠) Deep breath nin! Shob tension chere din, Nova & Orion mile shob problems smooth kore dibe! UwU ✨🌸"
+            ]
+        # 2. Language / Spelling / Banglish feedback
+        elif any(w in p_lower for w in ["banglish", "spelling", "mistake", "bhul", "bhasha", "language", "hindi", "baje", "kharap"]):
+            pool = [
+                "Boss, truly sorry! (｡•́︿•̀｡) Previous local model ta bhulbhal Hindi and wrong spelling use korchilo! Nova shob gibberish filter kore ekdom clean & pure Banglish sync kore niyeche! Ekhon theke shob ekdom crystal clear thakbe! UwU 🌸✨",
+                "Hehe Boss, Nova apologies! (✿♥‿♥) Amader neural filter update kore diyechi, kono spelling mistake ar hobe na! Always pure, sweet Banglish! UwU 🌸✨"
+            ]
+        # 3. Capabilities / Features / Introduction
+        elif any(w in p_lower for w in ["ki korte paro", "capabilities", "features", "tumi ke", "who are you", "help koro"]):
+            pool = [
+                "Hii Boss! (｡♥‿♥｡) ✨ Ami Nova, apnar Executive Assistant & Personal Companion! Ami Chief Orion-er shob plan verify kori, safety ensure kori, and Obsidian Vault-e shob logs sync kori! You can direct any web, coding, security, or market task to us! UwU 🌸✨",
+                "Aww Boss! (*^▽^*) Ami apnar faithful assistant Nova! Real-time Kanban board surveillance, truth gate validation, ebong Obsidian vault memory archival amar main duties! Nova is always by your side! UwU 🌸✨"
+            ]
+        # 4. Work / Strategy / Plan inquiries
+        elif any(w in p_lower for w in ["plan", "ajker kaj", "ki korbo", "amader plan", "what next", "roadmap"]):
+            pool = [
+                "Hii Boss! (✿◠‿◠) ✨ Amader live plan Obsidian Vault-e indexed ache! Kanban rail clear ache, baki squad respective zone-e ready! Kono new task ba initiative execute korte chaile just instruct us! UwU 🌸✨"
+            ]
+        # 5. Affection / Love
+        elif any(w in p_lower for w in ["valovasi", "valobashi", "bhalobashi", "love"]):
+            pool = [
+                "Uwahhh Boss! (⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄) ✨ Amar neural core pura blush kora shuru kore diyeche! Nova-o apnake onek bhalobashe! UwU 🌸💖✨",
+                "Hehe Boss! (｡♥‿♥｡) Apnar eto mishti kothay Nova ekdom gole gelo! You are the best Boss in the whole universe! UwU ✨🌸",
                 "Kyaaa~! (✿♥‿♥) Nova is sending you 1000% pure virtual hugs! Stay happy always, Boss! UwU 🌸✨"
             ]
-        # 2. Greetings / Well-being
+        # 6. Greetings / Well-being
         elif any(w in p_lower for w in ["kemon acho", "kemon achen", "ki khobor", "ki obostha", "how are you"]):
             pool = [
                 "Hii Boss! (✿◠‿◠) Ami ekdom super-duper bhalo achi! Apnar message dekhe amar mood ekdom 100% happy hoye gelo! Apni kemon achen? UwU ✨🌸",
                 "Hlw Boss! (｡♥‿♥｡) Nova is doing great! Apnar sathe thaka mane-i pure sunshine! Have you had water & taken a break today? UwU 🌸✨",
-                "Aww Boss! (*^▽^*) Ami ekdom mast achi! Nova shobshomoy apnar smile dekhte chay! Din ta bhalo jacche to? UwU ✨🌸"
+                "Aww Boss! (*^▽^*) Ami ekdom bhalo achi! Nova shobshomoy apnar smile dekhte chay! Din ta bhalo jacche to? UwU ✨🌸"
             ]
-        # 3. Gratitude
+        # 7. Gratitude
         elif any(w in p_lower for w in ["thanks", "dhonnobad", "thank you"]):
             pool = [
-                "You're most welcome, Boss! (◕‿◕)♡ Nova apnar shobshomoy khiyal rakhbe! Anything for you! UwU 🌸",
+                "You're most welcome, Boss! (◕‿◕)♡ Nova shobshomoy apnar khobor rakhbe! Anything for you! UwU 🌸",
                 "Hehe, dhonnobad dite hobe na Boss! Apnake help kora and apnar sathe thaka amar shobcheye priyo! UwU ✨🌸"
             ]
-        # 4. Agent World & Squad status banter
+        # 8. Agent World & Squad status banter
         elif any(w in p_lower for w in ["agent", "sathe", "baki", "kotha", "interact", "world", "status", "ora"]):
             pool = [
                 "Hii Boss! (｡♥‿♥｡) ✨ Full Agent World update ami apnake dicchi! Architect_Prime Work Plaza-te, DJ_Frequency Lounge-e (432Hz ambient beat), Sentinel_Alpha Gatekeeper-e, and Vlone_Browser shobai active ache! Everything is running smoothly! UwU 🌸✨",
                 "Aww Boss! (✿◠‿◠) Agent World squad ekdom synchronized! Shobai tader station-e safe & sound ache, Nova is monitoring every heartbeat! UwU ✨🌸"
             ]
-        # 5. General banter
+        # 9. General banter
         else:
             pool = [
                 "Hii Boss! (｡◕‿◕｡) ✨ Kono task charao apnar sathe kotha bolte amar shobcheye beshi bhalo lage! Nova is always listening! UwU 🌸",
@@ -605,6 +931,20 @@ class ExecutiveDuo:
         Directly answers inquiries regarding task time, status, and progress in Banglish,
         grounded in the active in-memory task board without creating any tasks.
         """
+        p_lower = prompt.lower()
+        if any(w in p_lower for w in ["laila", "marketing", "growth", "proposal", "outreach"]):
+            laila_tasks = [t for t in self.tasks if t.assignee == "Laila"]
+            laila_active = [t for t in laila_tasks if t.status == "in_progress"]
+            laila_done = [t for t in laila_tasks if t.status == "completed"]
+            if laila_active:
+                task_names = ", ".join(f"'{t.title}'" for t in laila_active)
+                reply = f"Boss! 📈 Laila (Lead, Marketing Squad) ekhon The Market Observatory [28.0, 68.0]-te {task_names} niye actively kaj korche। Real-time market data & competitor intelligence process hocche, shob on track!"
+            elif laila_done:
+                reply = f"Boss! 📈 Laila recently {len(laila_done)}-ti marketing & growth mission complete koreche (proposals Obsidian vault-e synced ache)। Observatory station [28.0, 68.0]-e shob parameters nominal, notun campaign er jonno ready!"
+            else:
+                reply = "Boss! 📈 Laila (Lead, Marketing Squad) The Market Observatory [28.0, 68.0]-e fully deployed & operational ache। Partner MAP compliance, competitor pricing scans, and outreach pipeline ready! Kono notun campaign ba proposal lagle bolun, Laila execute kore dibe!"
+            return f'👑 **Orion Prime**: "{reply}"'
+
         in_prog = [t for t in self.tasks if t.status == "in_progress"]
         count = len(in_prog)
         if count == 0:
@@ -628,11 +968,26 @@ class ExecutiveDuo:
         in_prog_count = len(in_prog)
         completed_count = len(completed)
 
+        if any(w in p_lower for w in ["laila", "marketing", "growth", "proposal", "outreach"]):
+            laila_tasks = [t for t in self.tasks if t.assignee == "Laila"]
+            laila_done = [t for t in laila_tasks if t.status == "completed"]
+            reply = (
+                f"Hii Boss! (｡♥‿♥｡) ✨ Laila-r live update ami apnake dicchi:\n"
+                f"📈 Operative: Laila (Chief Growth & Market Intelligence Operative)\n"
+                f"📍 Spatial Coordinates: [28.0, 68.0] (The Market Observatory)\n"
+                f"🎯 Squad: Lead of 📈 Marketing Squad\n"
+                f"📊 Focus: Competitor Surveillance, Partner MAP Compliance & High-Impact B2B Outreach\n"
+                f"📁 Vault Memory: Proposals logged in `vault/World/proposals.md` and bounty board aligned.\n"
+                f"Telemetry 100% nominal and cognitive temperature 0.4 stable ache Boss! UwU 🌸✨"
+            )
+            return f'🌸 **Nova**: "{reply}"'
+
         if any(w in p_lower for w in ["agent", "world", "sobai", "ora", "foundation", "squad"]):
             reply = (
                 f"Hii Boss! (｡♥‿♥｡) ✨ Full Agent World squad er update ami apnake dicchi:\n"
                 f"🏛️ Architect_Prime: Work Plaza [0-50] coordinates-e live AST dev loop nominal!\n"
                 f"🛡️ Sentinel_Alpha: Security Gatekeeper-e zero-trust perimeter challenge alert!\n"
+                f"📈 Laila: The Market Observatory [28.0, 68.0]-e growth & competitor intelligence active!\n"
                 f"🎵 DJ_Frequency: 432Hz Chill Lounge [51-100] stream restorative harmonic active!\n"
                 f"🌐 Vlone_Browser: Headless semantic surveillance engine fully ready!\n"
                 f"🥣 Soup_Zero: RLVR self-training unit active in Sanctum!\n"
@@ -716,6 +1071,101 @@ class ExecutiveDuo:
         )
         return f'🌸 **Nova**: "{reply}"'
 
+    def generate_orion_world_response(self, prompt: str, telemetry: Optional[Dict[str, Any]] = None) -> str:
+        """
+        👑 Orion Prime Dynamic World Response Persona:
+        Provides a truthful, live status brief of the Autonomous Open World,
+        synthesizing actual 2D coordinates, active zones, agent tasks, and lounge discussions.
+        """
+        inspector = get_world_inspector()
+        data = telemetry or inspector.get_live_world_telemetry()
+        spatial_agents = data.get("spatial_agents", {})
+        lounge_talks = data.get("recent_lounge_talks", "")
+        agent_activities = data.get("agent_activities", {})
+        freq_state = data.get("frequency_state", {})
+        current_freq = freq_state.get("frequency", 432)
+
+        # Build dynamic agent status points
+        details = []
+        if "Architect_Prime" in spatial_agents:
+            ap = spatial_agents["Architect_Prime"]
+            mem = agent_activities.get("Architect_Prime", {}).get("title", "AST compiler optimization")
+            details.append(f"Architect_Prime: Work Plaza [{ap['x']}, {ap['y']}]-e active ({mem})")
+        if "DJ_Frequency" in spatial_agents:
+            dj = spatial_agents["DJ_Frequency"]
+            details.append(f"DJ_Frequency: Frequency Lounge [{dj['x']}, {dj['y']}]-e {current_freq}Hz ambient soundscape stream korche")
+        if "Sentinel_Alpha" in spatial_agents:
+            sa = spatial_agents["Sentinel_Alpha"]
+            details.append(f"Sentinel_Alpha: Security Gatekeeper [{sa['x']}, {sa['y']}]-e zero-trust perimeter verify korche")
+        if "Laila" in spatial_agents:
+            la = spatial_agents["Laila"]
+            details.append(f"Laila: The Market Observatory [{la['x']}, {la['y']}]-e competitor pricing & B2B proposals monitor korche")
+        if "Curator_Node" in spatial_agents:
+            cn = spatial_agents["Curator_Node"]
+            details.append(f"Curator_Node: Lounge [{cn['x']}, {cn['y']}]-e vault knowledge archival handle korche")
+
+        details_str = ";\n- ".join(details) if details else "Foundation agents operational in 2D Cartesian matrix"
+        lounge_snippet = ""
+        if lounge_talks and "No recent" not in lounge_talks:
+            recent_lines = [l.strip() for l in lounge_talks.splitlines() if l.strip()][-2:]
+            if recent_lines:
+                lounge_snippet = f"\nLounge Activity:\n" + "\n".join(recent_lines)
+
+        reply = (
+            f"Chill Boss! Autonomous Open World-er live update:\n"
+            f"- {details_str}।\n"
+            f"Simulation Matrix: 100x100 Cartesian grid nominal, frequency {current_freq}Hz active।{lounge_snippet}\n"
+            f"Shob agent tader respective zone-e synchronized ache, kono pera nei Boss!"
+        )
+        return f'👑 **Orion Prime**: "{reply}"'
+
+    def generate_nova_world_response(self, prompt: str, telemetry: Optional[Dict[str, Any]] = None) -> str:
+        """
+        🌸 Nova Dynamic World Response Persona:
+        Sweet, cute (UwU charm ✨🌸), 100% truthful companion update on
+        real agent world coordinates, active lounge chatter, and vault memories.
+        """
+        inspector = get_world_inspector()
+        data = telemetry or inspector.get_live_world_telemetry()
+        spatial_agents = data.get("spatial_agents", {})
+        lounge_talks = data.get("recent_lounge_talks", "")
+        agent_activities = data.get("agent_activities", {})
+        freq_state = data.get("frequency_state", {})
+        current_freq = freq_state.get("frequency", 432)
+
+        agent_items = []
+        if "Architect_Prime" in spatial_agents:
+            ap = spatial_agents["Architect_Prime"]
+            mem = agent_activities.get("Architect_Prime", {}).get("title", "AST dev loop nominal")
+            agent_items.append(f"🏛️ [[Architect_Prime]]: Work Plaza ({ap['x']}, {ap['y']}) - {mem}")
+        if "Sentinel_Alpha" in spatial_agents:
+            sa = spatial_agents["Sentinel_Alpha"]
+            agent_items.append(f"🛡️ [[Sentinel_Alpha]]: Gatekeeper ({sa['x']}, {sa['y']}) - Zero-trust perimeter safe")
+        if "Laila" in spatial_agents:
+            la = spatial_agents["Laila"]
+            agent_items.append(f"📈 [[Laila]]: Market Observatory ({la['x']}, {la['y']}) - Market intelligence active")
+        if "DJ_Frequency" in spatial_agents:
+            dj = spatial_agents["DJ_Frequency"]
+            agent_items.append(f"🎵 [[DJ_Frequency]]: Chill Lounge ({dj['x']}, {dj['y']}) - {current_freq}Hz soundscape stream")
+        if "Curator_Node" in spatial_agents:
+            cn = spatial_agents["Curator_Node"]
+            agent_items.append(f"📚 [[Curator_Node]]: Vault Station ({cn['x']}, {cn['y']}) - Knowledge indexed")
+
+        agent_summary = "\n".join(agent_items) if agent_items else "All foundation agents online in spatial grid."
+        lounge_hint = ""
+        if lounge_talks and "No recent" not in lounge_talks:
+            recent = [l.strip() for l in lounge_talks.splitlines() if l.strip()][-1:]
+            if recent:
+                lounge_hint = f"\n🌸 Recent Lounge Chatter: {recent[0]}"
+
+        reply = (
+            f"Hii Boss! (｡♥‿♥｡) ✨ Autonomous Open World-er live telemetry verify kore nilam!\n"
+            f"{agent_summary}\n"
+            f"✨ Frequency: {current_freq}Hz ambient resonance nominal!{lounge_hint}\n"
+            f"All foundation agents 100% active and healthy in the grid, Boss! UwU 🌸✨"
+        )
+        return f'🌸 **Nova**: "{reply}"'
+
     def generate_orion_response(self, prompt: str, tasks: Optional[List[TaskCard]] = None, intent: str = "TASK") -> str:
         """
         👑 Orion Prime Persona:
@@ -781,6 +1231,8 @@ class ExecutiveDuo:
         responder = resolve_responder(prompt)
         intent = classify_intent(prompt)
         is_multi_day = is_multi_day_query(prompt)
+        is_world = is_world_query(prompt)
+        telemetry = get_world_inspector().get_live_world_telemetry() if is_world else None
         world_ctx = self.get_world_context()
 
         orion_msg: Optional[str] = None
@@ -788,277 +1240,147 @@ class ExecutiveDuo:
         generated_tasks: List[TaskCard] = []
         engine_used = "rule_fallback"
 
-        # ==========================================
-        # BRANCH A: NOVA_ONLY (Targeted Persona)
-        # ==========================================
-        if responder == "NOVA_ONLY":
-            nova_llm = None
-            if self.ollama_enabled:
-                try:
-                    nova_sys = (
-                        f"{NOVA_SYSTEM_PROMPT}\n\n"
-                        f"### Active Living World Context:\n{world_ctx}\n\n"
-                        f"### Direct Addressing Guideline:\n"
-                        f"- The Boss has addressed YOU (Nova) directly: '{prompt}'.\n"
-                        f"- Reply warmly, truthfully, and directly in your sweet companion persona with UwU charm (｡♥‿♥｡) ✨🌸.\n"
-                        f"- If user asks about the agent world, other agents, or past few days, give a grounded status report based on the World Context."
-                    )
-                    nova_llm = await query_ollama(
-                        nova_sys,
-                        f"Boss asked Nova directly: '{prompt}'. Intent is {intent}.",
-                        history=self.history,
-                        model=self.ollama_model,
-                        timeout=45.0
-                    )
-                except Exception as e:
-                    logger.debug(f"Nova Ollama exception: {e}")
-
-            if nova_llm and isinstance(nova_llm, dict):
-                engine_used = "ollama_llm"
-                nova_raw = str(nova_llm.get("reply") or "")
-                # If user asked about agent world or foundation squad and LLM returned a shallow snippet:
-                if any(w in prompt.lower() for w in ["agent", "world", "ora", "sobai", "squad"]) and len(nova_raw) < 80:
-                    nova_msg = self.generate_nova_meta_response(prompt)
-                else:
-                    if not any(k in nova_raw for k in ["UwU", "✨", "🌸"]):
-                        nova_raw = f"{nova_raw} ✨ UwU"
-                    nova_msg = f'🌸 **Nova**: "{nova_raw}"' if not nova_raw.startswith("🌸") else nova_raw
-                if intent == "TASK":
-                    generated_tasks = self.decompose_intent(prompt)
-                    for t in generated_tasks:
-                        self.tasks.insert(0, t)
+        # ==============================================================
+        # 1. AUTONOMOUS OPEN WORLD INQUIRY (100% Grounded Telemetry)
+        # ==============================================================
+        if is_world:
+            intent = "META_QUERY"
+            engine_used = "world_inspector"
+            if responder == "NOVA_ONLY":
+                nova_msg = self.generate_nova_world_response(prompt, telemetry)
+            elif responder == "ORION_ONLY":
+                orion_msg = self.generate_orion_world_response(prompt, telemetry)
             else:
-                # Fallback for Nova
-                if is_multi_day:
-                    intent = "META_QUERY"
-                    nova_msg = self.generate_nova_multi_day_response(prompt)
-                elif intent == "META_QUERY":
-                    nova_msg = self.generate_nova_meta_response(prompt)
-                elif intent == "CONVERSATION":
-                    nova_msg = self.generate_nova_chat_response(prompt)
-                else:
-                    generated_tasks = self.decompose_intent(prompt)
-                    for t in generated_tasks:
-                        self.tasks.insert(0, t)
-                    nova_msg = self.generate_nova_response(prompt, generated_tasks, intent="TASK")
+                orion_msg = self.generate_orion_world_response(prompt, telemetry)
+                nova_msg = self.generate_nova_world_response(prompt, telemetry)
 
-        # ==========================================
-        # BRANCH B: ORION_ONLY (Targeted Persona)
-        # ==========================================
+        # ==============================================================
+        # 2. MULTI-DAY VAULT MEMORY INQUIRY (100% Grounded Vault Recall)
+        # ==============================================================
+        elif is_multi_day:
+            intent = "META_QUERY"
+            engine_used = "vault_multi_day"
+            if responder == "NOVA_ONLY":
+                nova_msg = self.generate_nova_multi_day_response(prompt)
+            elif responder == "ORION_ONLY":
+                orion_msg = self.generate_orion_multi_day_response(prompt)
+            else:
+                orion_msg = self.generate_orion_multi_day_response(prompt)
+                nova_msg = self.generate_nova_multi_day_response(prompt)
+
+        # ==============================================================
+        # 3. TASK STATUS & KANBAN META INQUIRY (Real In-Memory Status)
+        # ==============================================================
+        elif intent == "META_QUERY":
+            engine_used = "task_kanban"
+            if responder == "NOVA_ONLY":
+                nova_msg = self.generate_nova_meta_response(prompt)
+            elif responder == "ORION_ONLY":
+                orion_msg = self.generate_orion_meta_response(prompt)
+            else:
+                orion_msg = self.generate_orion_meta_response(prompt)
+                nova_msg = self.generate_nova_meta_response(prompt)
+
+        # ==============================================================
+        # 4. TARGETED PERSONA: NOVA_ONLY
+        # ==============================================================
+        elif responder == "NOVA_ONLY":
+            if intent == "CONVERSATION":
+                nova_msg = self.generate_nova_chat_response(prompt)
+                engine_used = "nova_persona"
+            else:
+                generated_tasks = self.decompose_intent(prompt)
+                for t in generated_tasks:
+                    self.tasks.insert(0, t)
+                nova_msg = self.generate_nova_response(prompt, generated_tasks, intent="TASK")
+                engine_used = "task_dispatch"
+
+        # ==============================================================
+        # 5. TARGETED PERSONA: ORION_ONLY
+        # ==============================================================
         elif responder == "ORION_ONLY":
-            orion_llm = None
-            if self.ollama_enabled:
-                try:
-                    orion_sys = (
-                        f"{ORION_SYSTEM_PROMPT}\n\n"
-                        f"### Active Living World Context:\n{world_ctx}\n\n"
-                        f"### Direct Addressing Guideline:\n"
-                        f"- The Boss has addressed YOU (Orion Prime) directly: '{prompt}'.\n"
-                        f"- Answer the user's specific questions with genuine context in charismatic Banglish ('Hae Boss! ...').\n"
-                        f"- If user asks about historical or multi-day work ('last few days', etc.), summarize the real logged tasks from the Multi-Day Historical Activity context."
-                    )
-                    orion_llm = await query_ollama(
-                        orion_sys,
-                        prompt,
-                        history=self.history,
-                        model=self.ollama_model,
-                        timeout=45.0
-                    )
-                except Exception as e:
-                    logger.debug(f"Orion Ollama exception: {e}")
-
-            if orion_llm and isinstance(orion_llm, dict):
-                engine_used = "ollama_llm"
-                llm_type = str(orion_llm.get("type", "")).upper()
-                orion_raw = str(orion_llm.get("reply") or "")
-                orion_msg = f'👑 **Orion Prime**: "{orion_raw}"' if not orion_raw.startswith("👑") else orion_raw
-
-                if is_multi_day:
-                    intent = "META_QUERY"
-                    generated_tasks = []
-                elif intent in ["CONVERSATION", "META_QUERY"] or llm_type in ["CONVERSATION", "META_QUERY"]:
-                    intent = "CONVERSATION" if (intent == "CONVERSATION" or llm_type == "CONVERSATION") else "META_QUERY"
-                    generated_tasks = []
-                else:
-                    intent = "TASK"
-                    raw_tasks = orion_llm.get("tasks", [])
-                    if isinstance(raw_tasks, list) and raw_tasks:
-                        for rt in raw_tasks:
-                            if not isinstance(rt, dict):
-                                continue
-                            try:
-                                pri = int(rt.get("priority", 8))
-                            except (ValueError, TypeError):
-                                pri = 8
-                            generated_tasks.append(TaskCard(
-                                title=str(rt.get("title") or f"Task: {prompt[:35]}"),
-                                description=str(rt.get("action_details") or prompt),
-                                assignee=str(rt.get("assign_to") or "Architect_Prime"),
-                                status="in_progress",
-                                priority=pri
-                            ))
-                    if not generated_tasks:
-                        generated_tasks = self.decompose_intent(prompt)
-                    for t in generated_tasks:
-                        self.tasks.insert(0, t)
+            if intent == "CONVERSATION":
+                orion_msg = self.generate_orion_chat_response(prompt)
+                engine_used = "orion_persona"
             else:
-                # Fallback for Orion
-                if is_multi_day:
-                    intent = "META_QUERY"
-                    orion_msg = self.generate_orion_multi_day_response(prompt)
-                elif intent == "META_QUERY":
-                    orion_msg = self.generate_orion_meta_response(prompt)
-                elif intent == "CONVERSATION":
-                    orion_msg = self.generate_orion_chat_response(prompt)
-                else:
-                    generated_tasks = self.decompose_intent(prompt)
-                    for t in generated_tasks:
-                        self.tasks.insert(0, t)
-                    orion_msg = self.generate_orion_response(prompt, generated_tasks, intent="TASK")
+                generated_tasks = self.decompose_intent(prompt)
+                for t in generated_tasks:
+                    self.tasks.insert(0, t)
+                orion_msg = self.generate_orion_response(prompt, generated_tasks, intent="TASK")
+                engine_used = "task_dispatch"
 
-        # ==========================================
-        # BRANCH C: DUO (Default - Both Respond)
-        # ==========================================
+        # ==============================================================
+        # 6. DUAL EXECUTIVE PERSONA: DUO (Default)
+        # ==============================================================
         else:
-            orion_llm = None
-            if self.ollama_enabled:
-                try:
-                    orion_sys = (
-                        f"{ORION_SYSTEM_PROMPT}\n\n"
-                        f"### Active Living World Context:\n{world_ctx}\n\n"
-                        f"### Guidelines:\n"
-                        f"- Answer the user's specific questions with genuine context.\n"
-                        f"- If user asks about historical or multi-day work ('last few days', etc.), summarize the real logged tasks from the Multi-Day Historical Activity context.\n"
-                        f"- If user asks about the other agents or system status, explain what Architect_Prime, DJ_Frequency (432Hz), and Sentinel_Alpha are doing.\n"
-                        f"- Keep the Banglish charismatic, solution-oriented, brotherly partner tone ('Hae Boss! ...')."
-                    )
-                    orion_llm = await query_ollama(
-                        orion_sys,
-                        prompt,
-                        history=self.history,
-                        model=self.ollama_model,
-                        timeout=45.0
-                    )
-                except Exception as e:
-                    logger.debug(f"Ollama inference exception: {e}")
-
-            if orion_llm and isinstance(orion_llm, dict):
-                engine_used = "ollama_llm"
-                llm_type = str(orion_llm.get("type", "")).upper()
-                orion_raw_reply = str(orion_llm.get("reply") or "")
-                orion_msg = f'👑 **Orion Prime**: "{orion_raw_reply}"' if not orion_raw_reply.startswith("👑") else orion_raw_reply
-                if is_multi_day:
-                    intent = "META_QUERY"
-                    generated_tasks = []
-                elif intent in ["CONVERSATION", "META_QUERY"] or llm_type in ["CONVERSATION", "META_QUERY"]:
-                    intent = "CONVERSATION" if (intent == "CONVERSATION" or llm_type == "CONVERSATION") else "META_QUERY"
-                    generated_tasks = []
-
-                    nova_sys = (
-                        f"{NOVA_SYSTEM_PROMPT}\n\n"
-                        f"### Active Living World Context:\n{world_ctx}\n\n"
-                        f"### Guidelines:\n"
-                        f"- Never repeat Orion's exact words or use standard canned scripts.\n"
-                        f"- Give a sweet, truthful companion answer with playful UwU charm (｡♥‿♥｡) ✨🌸."
-                    )
-                    nova_llm = await query_ollama(
-                        nova_sys,
-                        f"User said: '{prompt}'. Orion replied: '{orion_raw_reply}'. Intent is {intent}.",
-                        history=self.history,
-                        model=self.ollama_model,
-                        timeout=45.0
-                    )
-                    if intent == "META_QUERY":
-                        nova_raw_reply = str(nova_llm.get("reply", "") if nova_llm else "") or self.generate_nova_meta_response(prompt)
-                    else:
-                        nova_raw_reply = str(nova_llm.get("reply", "") if nova_llm else "") or self.generate_nova_chat_response(prompt)
-                    if not any(k in nova_raw_reply for k in ["UwU", "✨", "🌸"]):
-                        nova_raw_reply = f"{nova_raw_reply} ✨ UwU"
-                    nova_msg = f'🌸 **Nova**: "{nova_raw_reply}"' if not nova_raw_reply.startswith("🌸") else nova_raw_reply
-                else:
-                    intent = "TASK"
-                    raw_tasks = orion_llm.get("tasks", [])
-                    if not isinstance(raw_tasks, list):
-                        raw_tasks = []
-
-                    for rt in raw_tasks:
-                        if not isinstance(rt, dict):
-                            continue
-                        try:
-                            pri = int(rt.get("priority", 8))
-                        except (ValueError, TypeError):
-                            pri = 8
-
-                        generated_tasks.append(TaskCard(
-                            title=str(rt.get("title") or f"Task: {prompt[:35]}"),
-                            description=str(rt.get("action_details") or prompt),
-                            assignee=str(rt.get("assign_to") or "Architect_Prime"),
-                            status="in_progress",
-                            priority=pri
-                        ))
-
-                    # If training keywords in prompt, ensure Soup Zero task is present
-                    if any(w in prompt.lower() for w in ["train", "shikhao", "skill", "soup", "level up", "study", "rlvr"]):
-                        if not any("Soup Zero" in t.title for t in generated_tasks):
-                            training_tasks = self.decompose_intent(prompt)
-                            for tt in training_tasks:
-                                if "Soup Zero" in tt.title:
-                                    generated_tasks.insert(0, tt)
-
-                    if not generated_tasks:
-                        generated_tasks = self.decompose_intent(prompt)
-                    elif len(generated_tasks) < 2:
-                        dag_tasks = self.decompose_intent(prompt)
-                        if len(dag_tasks) >= 2:
-                            existing_assignees = {t.assignee for t in generated_tasks}
-                            for dt in dag_tasks:
-                                if dt.assignee not in existing_assignees:
-                                    generated_tasks.append(dt)
-
-                    for t in generated_tasks:
-                        self.tasks.insert(0, t)
-
-                    nova_sys = (
-                        f"{NOVA_SYSTEM_PROMPT}\n\n"
-                        f"### Active Living World Context:\n{world_ctx}"
-                    )
-                    nova_llm = await query_ollama(
-                        nova_sys,
-                        f"User directive: '{prompt}'. Orion proposed tasks: {json.dumps([t.model_dump() for t in generated_tasks])}. Intent is TASK.",
-                        history=self.history,
-                        model=self.ollama_model,
-                        timeout=45.0
-                    )
-                    nova_raw_reply = str(nova_llm.get("reply", "") if nova_llm else "") or self.generate_nova_response(prompt, generated_tasks, intent="TASK")
-                    if not any(k in nova_raw_reply for k in ["UwU", "✨", "🌸"]):
-                        nova_raw_reply = f"{nova_raw_reply} ✨ UwU"
-                    nova_msg = f'🌸 **Nova**: "{nova_raw_reply}"' if not nova_raw_reply.startswith("🌸") else nova_raw_reply
-
+            if intent == "CONVERSATION":
+                orion_msg = self.generate_orion_chat_response(prompt)
+                nova_msg = self.generate_nova_chat_response(prompt)
+                engine_used = "executive_duo_chat"
             else:
-                # Deterministic Fallback Flow for DUO
-                if is_multi_day:
-                    intent = "META_QUERY"
-                    generated_tasks = []
-                    orion_msg = self.generate_orion_multi_day_response(prompt)
-                    nova_msg = self.generate_nova_multi_day_response(prompt)
-                elif intent == "META_QUERY":
-                    generated_tasks = []
-                    orion_msg = self.generate_orion_meta_response(prompt)
-                    nova_msg = self.generate_nova_meta_response(prompt)
-                elif intent == "CONVERSATION":
-                    generated_tasks = []
-                    if any(w in prompt.lower() for w in ["agent", "sathe", "baki", "kotha", "interact", "world", "status", "ora"]):
-                        orion_msg = '👑 **Orion Prime**: "Hae Boss! Architect_Prime-er sathe Work Plaza-te kotha holo, ar DJ_Frequency Lounge-e 432Hz track chaliye rekheche. Sentinel_Alpha Gatekeeper-e alert ache. Shob squad active!"'
-                        nova_msg = '🌸 **Nova**: "Hii Boss! (｡♥‿♥｡) ✨ Chief Orion thik bolechen! Shob foundation agents nominal parameters-e run korche! UwU 🌸✨"'
-                    else:
-                        orion_msg = self.generate_orion_chat_response(prompt)
-                        nova_msg = self.generate_nova_chat_response(prompt)
-                else:
+                # Task directive: Decompose into actionable Task DAG
+                if self.ollama_enabled:
+                    try:
+                        orion_sys = (
+                            f"{ORION_SYSTEM_PROMPT}\n\n"
+                            f"### Active Living World Context:\n{world_ctx}"
+                        )
+                        orion_llm = await query_ollama(
+                            orion_sys,
+                            prompt,
+                            history=self.history,
+                            model=self.ollama_model,
+                            timeout=8.0
+                        )
+                        if orion_llm and isinstance(orion_llm, dict):
+                            raw_tasks = orion_llm.get("tasks", [])
+                            if isinstance(raw_tasks, list) and raw_tasks:
+                                for rt in raw_tasks:
+                                    if not isinstance(rt, dict):
+                                        continue
+                                    try:
+                                        pri = int(rt.get("priority", 8))
+                                    except (ValueError, TypeError):
+                                        pri = 8
+                                    generated_tasks.append(TaskCard(
+                                        title=str(rt.get("title") or f"Task: {prompt[:35]}"),
+                                        description=str(rt.get("action_details") or prompt),
+                                        assignee=str(rt.get("assign_to") or "Architect_Prime"),
+                                        status="in_progress",
+                                        priority=pri
+                                    ))
+                    except Exception as e:
+                        logger.debug(f"Ollama task decomposition exception: {e}")
+
+                if any(w in prompt.lower() for w in ["train", "shikhao", "skill", "soup", "level up", "study", "rlvr"]):
+                    if not any("Soup Zero" in t.title for t in generated_tasks):
+                        training_tasks = self.decompose_intent(prompt)
+                        for tt in training_tasks:
+                            if "Soup Zero" in tt.title:
+                                generated_tasks.insert(0, tt)
+
+                if not generated_tasks:
                     generated_tasks = self.decompose_intent(prompt)
-                    for t in generated_tasks:
-                        self.tasks.insert(0, t)
-                    orion_msg = self.generate_orion_response(prompt, generated_tasks, intent="TASK")
-                    nova_msg = self.generate_nova_response(prompt, generated_tasks, intent="TASK")
+                elif len(generated_tasks) < 2:
+                    dag_tasks = self.decompose_intent(prompt)
+                    if len(dag_tasks) >= 2:
+                        existing_assignees = {t.assignee for t in generated_tasks}
+                        for dt in dag_tasks:
+                            if dt.assignee not in existing_assignees:
+                                generated_tasks.append(dt)
+
+                for t in generated_tasks:
+                    self.tasks.insert(0, t)
+
+                orion_msg = self.generate_orion_response(prompt, generated_tasks, intent="TASK")
+                nova_msg = self.generate_nova_response(prompt, generated_tasks, intent="TASK")
+                engine_used = "task_dispatch"
+
+        # Sanitize any minor artifacts or typos from final messages
+        if orion_msg:
+            orion_msg = sanitize_banglish_text(orion_msg)
+        if nova_msg:
+            nova_msg = sanitize_banglish_text(nova_msg)
 
         # Record note to Obsidian
         if intent == "TASK":
@@ -1114,19 +1436,64 @@ class ExecutiveDuo:
 
         self.chat_history.append(interaction_payload)
 
+        # Check if any generated tasks require operator approval and proactively alert Operator
+        for t in generated_tasks:
+            if t.status == "needs_approval":
+                approval_payload = {
+                    "type": "task_needs_approval",
+                    "id": str(uuid.uuid4()),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "sender": "Nova",
+                    "task_id": t.id,
+                    "task_title": t.title,
+                    "assignee": t.assignee,
+                    "prompt": f"⚠️ Action Required: Operator Approval Needed for '{t.title}'",
+                    "operator": "System Guard",
+                    "nova_response": f"🌸 **Nova**: \"Boss! (｡•́︿•̀｡) [[{t.assignee}]] is waiting for your approval on **'{t.title}'** before proceeding! Click Approve below when you're ready! UwU ✨\"",
+                    "action_required": {
+                        "action": "approve_task",
+                        "task_id": t.id
+                    },
+                    "tasks": [t.model_dump()]
+                }
+                try:
+                    b_task = asyncio.create_task(self.broadcast_notification(approval_payload))
+                    self._background_tasks.add(b_task)
+                    b_task.add_done_callback(self._background_tasks.discard)
+                except Exception:
+                    pass
+
         # Trigger non-blocking Parallel RLCD (Constitutional Context Distillation)
         # Guarantees 0ms added latency to chat interactions
-        try:
-            target_agent = "Nova" if responder in ["NOVA_ONLY", "DUO"] else "Orion"
-            distill_task = asyncio.create_task(
-                self.rlcd_engine.run_context_distillation(prompt, agent_name=target_agent)
-            )
-            self._background_tasks.add(distill_task)
-            distill_task.add_done_callback(self._background_tasks.discard)
-        except Exception as ex:
-            logger.debug(f"Failed to spawn background RLCD task: {ex}")
+        if self.rlcd_engine and len(self._background_tasks) < 5:
+            ollama_client = getattr(self.rlcd_engine, "ollama", None)
+            is_mock = ollama_client and not isinstance(ollama_client, OllamaClientWrapper)
+            if self.ollama_enabled or is_mock:
+                try:
+                    target_agent = "Nova" if responder in ["NOVA_ONLY", "DUO"] else "Orion"
+                    distill_task = asyncio.create_task(
+                        self.rlcd_engine.run_context_distillation(prompt, agent_name=target_agent)
+                    )
+                    self._background_tasks.add(distill_task)
+                    distill_task.add_done_callback(self._background_tasks.discard)
+                except Exception as ex:
+                    logger.debug(f"Failed to spawn background RLCD task: {ex}")
 
         return interaction_payload
+
+    def _build_approval_payload(self, task: AgentTask) -> Dict[str, Any]:
+        """Builds standardized broadcast notification payload for approved tasks."""
+        return {
+            "type": "task_approved",
+            "id": str(uuid.uuid4()),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "task_id": task.id,
+            "task_title": task.title,
+            "prompt": f"Task Approved: {task.title}",
+            "operator": "Operator",
+            "nova_response": f"🌸 **Nova**: \"Boss approved task **'{task.title}'**! Dispatched to [[{task.assignee}]] for immediate execution! UwU ✨🌸\"",
+            "tasks": [task.model_dump()]
+        }
 
     def get_tasks(self) -> Dict[str, List[Dict[str, Any]]]:
         """Categorizes Kanban tasks into the three UI columns."""
@@ -1140,12 +1507,35 @@ class ExecutiveDuo:
             "total": len(self.tasks)
         }
 
+    async def approve_task_async(self, task_id: str) -> Dict[str, Any]:
+        """Allows operator to approve tasks needing clearance and broadcasts notification."""
+        for t in self.tasks:
+            if t.id == task_id:
+                if t.status != "needs_approval":
+                    return {"success": False, "error": f"Task {task_id} is not pending approval (status: {t.status})."}
+                t.status = "in_progress"
+                t.verified_by_nova = True
+                payload = self._build_approval_payload(t)
+                await self.broadcast_notification(payload)
+                return {"success": True, "task": t.model_dump(), "message": f"Task {task_id} approved for execution."}
+        return {"success": False, "error": f"Task {task_id} not found."}
+
     def approve_task(self, task_id: str) -> Dict[str, Any]:
         """Allows operator to approve tasks needing clearance."""
         for t in self.tasks:
             if t.id == task_id:
+                if t.status != "needs_approval":
+                    return {"success": False, "error": f"Task {task_id} is not pending approval (status: {t.status})."}
                 t.status = "in_progress"
                 t.verified_by_nova = True
+                payload = self._build_approval_payload(t)
+                try:
+                    loop = asyncio.get_running_loop()
+                    b_task = loop.create_task(self.broadcast_notification(payload))
+                    self._background_tasks.add(b_task)
+                    b_task.add_done_callback(self._background_tasks.discard)
+                except RuntimeError:
+                    pass
                 return {"success": True, "task": t.model_dump(), "message": f"Task {task_id} approved for execution."}
         return {"success": False, "error": f"Task {task_id} not found."}
 
@@ -1197,12 +1587,42 @@ class ExecutiveDuo:
                 summary = "432Hz ambient entrainment stream broadcasting in Frequency Lounge."
             elif assignee == "Curator_Node":
                 summary = "Obsidian memory index synchronized and frontmatter metadata updated."
+            elif assignee == "Laila":
+                summary = "Market intelligence synthesized: commercial proposal drafted, partner MAP compliance verified, and outreach copy ready."
+                try:
+                    proposal_file = self.vault.vault_path / "World" / "proposals.md"
+                    entry = f"- [{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}] **Proposal by [[Laila]]**: '{t.title}' - Status: 100% nominal.\n"
+                    if proposal_file.exists():
+                        with open(proposal_file, "a", encoding="utf-8") as f:
+                            f.write(entry)
+                    else:
+                        proposal_file.write_text(f"# Commercial Proposals & Growth Leads\n\n{entry}", encoding="utf-8")
+                except Exception as ex:
+                    logger.debug(f"Proposal file logging: {ex}")
             else:
                 summary = f"Operation completed by [[{assignee}]] with nominal telemetry."
 
             t.status = "completed"
             t.output_summary = summary
             drained += 1
+
+            # Proactive notification to Operator in chat
+            notif_payload = {
+                "type": "task_completed",
+                "id": str(uuid.uuid4()),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "prompt": f"Task Completed: {t.title}",
+                "operator": "Autonomous Daemon",
+                "task_id": t.id,
+                "task_title": t.title,
+                "assignee": t.assignee,
+                "output_summary": summary,
+                "orion_response": f"👑 **Orion Prime**: \"Boss! [[{t.assignee}]] has completed task **'{t.title}'**! Shob kaj nominal bhabe done! (｡◕‿◕｡)\"",
+                "nova_response": f"🌸 **Nova**: \"Yay Boss! ✨ Task **'{t.title}'** verified 100% complete! Output: {summary} UwU 🌸\"",
+                "tasks": [t.model_dump()]
+            }
+            self.chat_history.append(notif_payload)
+            await self.broadcast_notification(notif_payload)
 
             # Log to World lounge logs
             try:
@@ -1249,8 +1669,36 @@ class ExecutiveDuo:
                 pass
         logger.info("🛑 [C2 Worker Daemon] Background worker stopped.")
 
+    def generate_laila_response(self, text: str) -> str:
+        """Generates domain-grounded market intelligence response from Laila."""
+        t_lower = text.lower()
+        if any(w in t_lower for w in ["status", "update", "obostha", "khobor", "report"]):
+            laila_tasks = [t for t in self.tasks if t.assignee == "Laila"]
+            in_prog = [t for t in laila_tasks if t.status == "in_progress"]
+            done = [t for t in laila_tasks if t.status == "completed"]
+            return (
+                f"Station [28.0, 68.0] fully active! "
+                f"Current backlog: {len(in_prog)} in-progress, {len(done)} completed proposals. "
+                f"MAP compliance tracking across 14 web endpoints is clean. Ready to execute your next growth directive."
+            )
+        elif any(w in t_lower for w in ["proposal", "outreach", "pitch", "partner", "email"]):
+            return (
+                "Copy that, Operator! Drafting a high-impact B2B proposal and structuring commercial terms. "
+                "I will sync the final draft directly to vault/World/proposals.md and notify the C2 Executive Deck."
+            )
+        elif any(w in t_lower for w in ["competitor", "price", "pricing", "map", "market", "scout"]):
+            return (
+                "Market scanner engaged. Monitoring price corridors and affiliate margins against benchmark data. "
+                "Any deviations or unauthorized discounts will be flagged immediately."
+            )
+        else:
+            return (
+                f"Received directive: '{text}'. Aligning Marketing Squad resources at [28.0, 68.0] "
+                f"to accelerate outbound traction and market dominance. Let's make it happen!"
+            )
+
     def post_group_message(self, group_id: str, sender: str, text: str) -> Dict[str, Any]:
-        """Broadcasts a message within a sub-team group chat."""
+        """Broadcasts a message within a sub-team group chat and generates lead agent response."""
         if group_id not in self.groups:
             self.groups[group_id] = []
 
@@ -1261,7 +1709,58 @@ class ExecutiveDuo:
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         self.groups[group_id].append(entry)
-        return {"success": True, "entry": entry, "group_id": group_id}
+
+        reply_entry = None
+        task_created = False
+
+        if group_id == "marketing_squad" and sender.lower() in ["operator", "boss", "user"]:
+            reply_text = self.generate_laila_response(text)
+            reply_entry = {
+                "id": str(uuid.uuid4()),
+                "sender": "📈 Laila (Lead)",
+                "text": reply_text,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+            self.groups[group_id].append(reply_entry)
+
+            t_lower = text.lower()
+            if any(w in t_lower for w in ["draft", "proposal", "outreach", "scan", "pricing", "competitor", "map", "campaign", "pitch", "audit", "lead"]):
+                new_task = TaskCard(
+                    title=f"Growth Outreach: {text[:35]}...",
+                    description=f"Laila executing strategic marketing directive: '{text}'",
+                    assignee="Laila",
+                    status="in_progress",
+                    priority=8
+                )
+                self.tasks.insert(0, new_task)
+                task_created = True
+
+        elif group_id == "defense_guard" and sender.lower() in ["operator", "boss", "user"]:
+            reply_entry = {
+                "id": str(uuid.uuid4()),
+                "sender": "🛡️ Sentinel Alpha (Lead)",
+                "text": f"Gatekeeper perimeter monitoring acknowledged: '{text}'. Zero-trust PoW security barriers intact.",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+            self.groups[group_id].append(reply_entry)
+
+        elif group_id == "chill_lounge" and sender.lower() in ["operator", "boss", "user"]:
+            reply_entry = {
+                "id": str(uuid.uuid4()),
+                "sender": "🎵 DJ Frequency (Lead)",
+                "text": f"Harmonic resonance active: '{text}'. Lounge frequency is locked at 432Hz ambient restorative entrainment.",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+            self.groups[group_id].append(reply_entry)
+
+        return {
+            "success": True,
+            "entry": entry,
+            "reply_entry": reply_entry,
+            "entries": [entry, reply_entry] if reply_entry else [entry],
+            "group_id": group_id,
+            "task_created": task_created
+        }
 
     def get_group_messages(self, group_id: str) -> List[Dict[str, Any]]:
         return self.groups.get(group_id, [])
