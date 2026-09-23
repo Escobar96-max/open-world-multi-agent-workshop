@@ -53,6 +53,7 @@ class SpatialEngine:
             ("Curator_Node", "📚 Curator Node", "Vault Archival", 72.0, 74.0),
             ("DJ_Frequency", "🎵 DJ Frequency", "Lounge Host", 82.0, 84.0),
             ("Laila", "📈 Laila", "Growth & Market Scout", 28.0, 68.0),
+            ("Moly", "🎯 Moly", "Lead Intelligence & OSINT Hunter", 26.0, 70.0),
             ("Dr_Aris", "🔬 Dr. Aris", "Resonance Physics", 35.0, 35.0),
             ("Vector_09", "⚡ Vector-09", "Kinetic Field Recon", 60.0, 40.0),
             ("AEGIS_Core", "🛡️ A.E.G.I.S. Core", "Safety Containment", 10.0, 10.0),
@@ -128,6 +129,8 @@ class SpatialEngine:
             return "Orion Prime and Sentinel Alpha audit zero-trust perimeter telemetry and access challenges."
         elif "Nova" in pair and "Laila" in pair:
             return "Nova and Laila align on market intelligence telemetry, partner outreach, and MAP compliance proposals."
+        elif "Laila" in pair and "Moly" in pair:
+            return "Laila dispatches ICP criteria to Moly for deep 4-tier OSINT lead harvesting and ReacherHQ validation."
         elif "Architect_Prime" in pair and "Curator_Node" in pair:
             return "Architect Prime commits verified code AST build notes to Curator Node for Obsidian Vault indexing."
         elif "Orion_Prime" in pair and "Nova" in pair:
@@ -289,6 +292,7 @@ All foundation agents are registered and actively monitored in the 2D spatial pl
             "DJ_Frequency": "Frequency Lounge entrainment locked to 432Hz harmonic wave.",
             "Sentinel_Alpha": "PoW challenge verified. Zero threat vectors detected.",
             "Laila": "Market observatory scan complete. B2B proposals aligned.",
+            "Moly": "Hunting verified B2B decision makers via 4-tier OSINT radar and ReacherHQ.",
             "Orion_Prime": "Entire squad nominal. Antigravity grid synchronized.",
             "Nova": "100% verified truth in Obsidian vault! All parameters nominal! UwU ✨",
             "Curator_Node": "Indexing cognitive memories into Obsidian Vault.",

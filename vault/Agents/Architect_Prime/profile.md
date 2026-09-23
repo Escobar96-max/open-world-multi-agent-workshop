@@ -3,7 +3,7 @@ coords:
 - 18.0
 - 32.0
 id: Architect_Prime
-reputation_score: 105
+reputation_score: 110
 role: Senior Systems Architect & Dev Loop Engine
 skills:
 - RLVR-AST_OPTIMIZATION

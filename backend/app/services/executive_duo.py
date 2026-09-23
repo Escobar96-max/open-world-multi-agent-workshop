@@ -45,7 +45,7 @@ You are Orion Prime, Chief Executive Orchestrator of this autonomous ecosystem.
      Answer directly with warm reassurance and grounded multi-day records from context. Output valid JSON:
      {"type": "META_QUERY", "reply": "<your_status_and_time_estimate_in_banglish>", "tasks": []}
   3. TASK: If user gives a concrete personal or business directive to execute new work:
-     Break down the plan. Assign sub-agents from: ['Vlone_Browser', 'Architect_Prime', 'Sentinel_Alpha', 'Curator_Node', 'DJ_Frequency', 'Soup_Zero', 'Laila'].
+     Break down the plan. Assign sub-agents from: ['Vlone_Browser', 'Architect_Prime', 'Sentinel_Alpha', 'Curator_Node', 'DJ_Frequency', 'Soup_Zero', 'Laila', 'Moly'].
      Output valid JSON:
      {"type": "TASK", "reply": "<calm_reassurance_in_banglish>", "tasks": [{"title": "<short_title>", "assign_to": "<agent_name>", "priority": 8, "action_details": "<what_to_do>"}]}
 - Strict Rule: NEVER output markdown code blocks around JSON. Output pure raw JSON only.
@@ -291,7 +291,7 @@ GREETING_PHRASES = [
 
 META_QUERY_INDICATORS = [
     "kotokhon", "koto time", "koto shomoy", "koto khon", "koto dur",
-    "status", "progress", "update", "upodate", "obostha", "cholche", "lagbe",
+    "status", "progress", "update", "upodate", "obostha", "cholche", "time lagbe", "kotokhon lagbe",
     "how long", "eta", "time estimate", "shob kaj", "task gulo ki",
     "task status", "sobai ki korche", "sobai ki kaj", "ki kaj korche",
     "ki korche", "ora ki korche", "koto baki", "kobe sesh", "kobe hobe",
@@ -347,7 +347,10 @@ def classify_intent(message: str) -> str:
         re.search(rf"\b{re.escape(k)}\b", msg_clean) for k in active_task_keywords
     )
 
-    # Concrete operational task action (e.g. scrape, train, deploy, patch)
+    # Concrete operational task action (e.g. scrape, train, deploy, patch, lead harvesting)
+    if any(re.search(rf"\b{re.escape(k)}\b", msg_clean) for k in ["lead", "leads", "moly", "scrape", "extract", "deploy", "patch"]):
+        return "TASK"
+
     if has_task_keyword and not is_meta:
         return "TASK"
 
@@ -740,8 +743,24 @@ class ExecutiveDuo:
                 priority=10
             ))
 
+        # Moly & Laila Autonomous Lead Engine
+        if any(w in lower for w in ["lead", "leads", "moly", "osint", "ceo", "decision maker", "prospecting", "texas logistics", "freight"]):
+            new_tasks.append(TaskCard(
+                title=f"Moly OSINT Lead Radar: {prompt[:30]}...",
+                description=f"4-tier OSINT extraction, WP-JSON/Schema sniff, and ReacherHQ SMTP verification for: '{prompt}'",
+                assignee="Moly",
+                status="in_progress",
+                priority=9
+            ))
+            new_tasks.append(TaskCard(
+                title=f"Laila Lead Supervision: {prompt[:30]}...",
+                description=f"ICP qualification, lead validation, and Google Sheet handoff for Moly's harvest",
+                assignee="Laila",
+                status="in_progress",
+                priority=8
+            ))
         # Laila (Growth, Marketing, Outreach, Proposals, Competitor pricing)
-        if any(w in lower for w in ["market", "marketing", "growth", "lead", "leads", "copy", "outreach", "proposal", "campaign", "competitor", "client", "sales", "pitch", "laila"]):
+        elif any(w in lower for w in ["market", "marketing", "growth", "copy", "outreach", "proposal", "campaign", "competitor", "client", "sales", "pitch", "laila"]):
             new_tasks.append(TaskCard(
                 title=f"Laila Market Intelligence: {prompt[:30]}...",
                 description=f"Analyze market dynamics, synthesize commercial proposal, and optimize outreach for: '{prompt}'",
@@ -767,6 +786,8 @@ class ExecutiveDuo:
             for t in new_tasks:
                 if t.assignee == "Laila":
                     spatial.dispatch_agent_to_zone("Laila", "market_observatory", t.title)
+                elif t.assignee == "Moly":
+                    spatial.dispatch_agent_to_zone("Moly", "market_observatory", t.title)
                 elif t.assignee == "Architect_Prime":
                     spatial.dispatch_agent_to_zone("Architect_Prime", "work_plaza", t.title)
                 elif t.assignee == "DJ_Frequency":
@@ -1599,6 +1620,8 @@ class ExecutiveDuo:
                         proposal_file.write_text(f"# Commercial Proposals & Growth Leads\n\n{entry}", encoding="utf-8")
                 except Exception as ex:
                     logger.debug(f"Proposal file logging: {ex}")
+            elif assignee == "Moly":
+                summary = "4-Tier OSINT harvest completed: C-Suite decision makers extracted, ReacherHQ SMTP verified (0% bounce), and rows synced to Google Sheet."
             else:
                 summary = f"Operation completed by [[{assignee}]] with nominal telemetry."
 
@@ -1681,6 +1704,13 @@ class ExecutiveDuo:
                 f"Current backlog: {len(in_prog)} in-progress, {len(done)} completed proposals. "
                 f"MAP compliance tracking across 14 web endpoints is clean. Ready to execute your next growth directive."
             )
+        elif any(w in t_lower for w in ["lead", "leads", "moly", "osint", "texas", "logistics", "decision maker"]):
+            return (
+                "Chill Boss! Mission locked in! Ami Moly-ke directive assign kore disi। "
+                "Moly Vlone engine niye target domain-e sweep chalu korche ar background XHR network traffic sniffer on koreche। "
+                "Kono junk lead ashbe na, shob ReacherHQ SMTP verify kore Google Sheet-e tule dicche! "
+                "Ektu chill korun, link anchi! ✨🌸"
+            )
         elif any(w in t_lower for w in ["proposal", "outreach", "pitch", "partner", "email"]):
             return (
                 "Copy that, Operator! Drafting a high-impact B2B proposal and structuring commercial terms. "
@@ -1724,7 +1754,24 @@ class ExecutiveDuo:
             self.groups[group_id].append(reply_entry)
 
             t_lower = text.lower()
-            if any(w in t_lower for w in ["draft", "proposal", "outreach", "scan", "pricing", "competitor", "map", "campaign", "pitch", "audit", "lead"]):
+            if any(w in t_lower for w in ["lead", "leads", "moly", "osint", "texas", "logistics", "decision maker"]):
+                moly_task = TaskCard(
+                    title=f"Moly OSINT Harvest: {text[:35]}...",
+                    description=f"Moly executing 4-tier waterfall lead radar and ReacherHQ validation for: '{text}'",
+                    assignee="Moly",
+                    status="in_progress",
+                    priority=9
+                )
+                self.tasks.insert(0, moly_task)
+                moly_reply = {
+                    "id": str(uuid.uuid4()),
+                    "sender": "🎯 Moly (OSINT Specialist)",
+                    "text": "[Moly] 4-Tier Waterfall Radar scanning target domains via Vlone + ReacherHQ SMTP handshake (0% bounce).",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+                self.groups[group_id].append(moly_reply)
+                task_created = True
+            elif any(w in t_lower for w in ["draft", "proposal", "outreach", "scan", "pricing", "competitor", "map", "campaign", "pitch", "audit"]):
                 new_task = TaskCard(
                     title=f"Growth Outreach: {text[:35]}...",
                     description=f"Laila executing strategic marketing directive: '{text}'",

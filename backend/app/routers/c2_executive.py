@@ -214,3 +214,52 @@ async def send_proactive_notification_endpoint(req: ProactiveNotificationRequest
     )
     return res
 
+
+class LeadCampaignRequest(BaseModel):
+    niche: str
+    criteria: Optional[str] = None
+    target_sheet_url: Optional[str] = "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
+    domains: Optional[List[Dict[str, str]]] = None
+    operator: Optional[str] = "Boss"
+
+
+@router.post("/lead-engine/campaign")
+async def execute_lead_campaign_endpoint(req: LeadCampaignRequest):
+    """
+    Autonomous Executive Lead Engine:
+    Laila translates directive to ICP, supervises Moly's 4-tier waterfall radar,
+    runs ReacherHQ SMTP verification, updates Google Sheets, and sends proactive alert.
+    """
+    from app.services.laila_supervisor import laila_manager
+    res = await laila_manager.execute_lead_campaign(
+        niche=req.niche,
+        criteria=req.criteria,
+        target_sheet_url=req.target_sheet_url or "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit",
+        target_domains=req.domains,
+        operator=req.operator or "Boss"
+    )
+
+    # Broadcast proactive notification to C2 Executive desk
+    duo = get_executive_duo()
+    await duo.push_proactive_notification(
+        sender="📈 Laila (Lead)",
+        message=res["report_to_boss"],
+        category="notification",
+        title=f"Moly OSINT Leads: {req.niche}"
+    )
+
+    return res
+
+
+class VerifyEmailRequest(BaseModel):
+    email: str
+
+
+@router.post("/lead-engine/verify-email")
+async def verify_lead_email_endpoint(req: VerifyEmailRequest):
+    """Zero-bounce ReacherHQ Rust SMTP Handshake verification endpoint."""
+    from app.services.moly_lead_hunter import moly_agent
+    is_safe = await moly_agent.verify_smtp(req.email)
+    return {"email": req.email, "is_safe": is_safe, "verifier": "ReacherHQ (Rust Engine)"}
+
+

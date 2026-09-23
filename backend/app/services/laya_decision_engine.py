@@ -174,13 +174,14 @@ class LayaDecisionEngine:
             meta = [
                 "kotokhon", "status", "update", "progress", "koto time", "koto shomoy",
                 "koto dur", "eta", "shob kaj", "task gulo ki", "last few days", "ager kaj",
-                "obostha", "cholche", "lagbe", "how long", "time estimate", "task status",
+                "obostha", "cholche", "time lagbe", "kotokhon lagbe", "how long", "time estimate", "task status",
                 "sobai ki korche", "ki kaj korche", "ora ki korche", "koto baki"
             ]
             actionable = [
                 "scrape", "extract", "crawl", "search", "email", "send", "draft",
                 "code", "build", "analyze", "find", "check", "run", "download",
-                "sort", "play", "gaan", "lock", "verify", "audit", "patch", "deploy", "train"
+                "sort", "play", "gaan", "lock", "verify", "audit", "patch", "deploy", "train",
+                "lead", "leads", "moly", "assign", "prospecting", "hunter"
             ]
 
             has_meta_target = any(_has_word(w) for w in [
@@ -189,6 +190,10 @@ class LayaDecisionEngine:
             ])
             is_chat = any(_has_word(w) for w in chitchat)
             is_meta = any(_has_word(w) for w in meta)
+
+            # High priority actionable task primitives (e.g. leads, scraping, deployment)
+            if any(_has_word(w) for w in ["lead", "leads", "moly", "assign", "scrape", "extract", "train"]):
+                return "TASK", 0.96
 
             # Conversational greetings take precedence unless explicitly targeting tasks/estimates
             if is_chat and not has_meta_target:
