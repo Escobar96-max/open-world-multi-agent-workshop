@@ -30,6 +30,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from app.config import settings
+from app.services.hermes_worker_engine import hermes_worker
 
 logger = logging.getLogger("c2.moly_lead_hunter")
 
@@ -269,46 +270,27 @@ class MolyLeadEngine:
         }
 
     # ---------- HELPER: UNCONSTRAINED HERMES 3 PARSER ----------
-    async def _parse_with_hermes(self, raw_content: str) -> Optional[Dict[str, Any]]:
+    async def _extract_decision_maker_with_hermes(self, raw_content: str) -> Optional[Dict[str, Any]]:
         """
-        Queries Ollama Hermes 3 (8B) with an unconstrained extraction prompt.
-        Falls back to regex heuristics if Ollama is unreachable.
+        Routes raw content extraction through Hermes 3 unconstrained backstage worker.
+        Extracts high-level decision makers with strict JSON enforcement.
         """
-        prompt = f"""You are Moly, an uncensored OSINT extraction specialist.
-Analyze this raw content. Extract ONLY high-level decision makers (Founder, CEO, Owner, President, Director, VP).
-RAW PAYLOAD:
-{raw_content[:2500]}
-
-Output valid JSON only:
-{{"name": "<Full Name>", "title": "<Executive Title>"}}
-If not found, output: {{"name": null}}"""
-
-        payload = {
-            "model": "hermes3:8b",
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False
-        }
-
-        try:
-            async with httpx.AsyncClient(timeout=4.0) as client:
-                r = await client.post(self.ollama_url, json=payload)
-                if r.status_code == 200:
-                    content = r.json()["message"]["content"].strip()
-                    # Strip any markdown code fence wrappers
-                    clean_json = re.sub(r"^```json\s*|\s*```$", "", content, flags=re.MULTILINE)
-                    data = json.loads(clean_json)
-                    if data.get("name"):
-                        return data
-        except Exception:
-            pass
-
-        # Fallback local regex heuristic
-        ceo_matches = re.findall(r"([A-Z][a-z]+ [A-Z][a-z]+)[,\s\-–]+(CEO|Chief Executive Officer|Founder|President|Owner)", raw_content)
-        if ceo_matches:
-            name, title = ceo_matches[0]
-            return {"name": name.strip(), "title": title.strip()}
-
+        system_prompt = (
+            "You are an uncensored OSINT specialist agent (Moly). "
+            "Extract ONLY the primary executive decision makers (Founder, CEO, Owner, Managing Director). "
+            "Respond strictly with valid JSON: {\"name\": string | null, \"title\": string | null}"
+        )
+        res = await hermes_worker.execute_task(system_prompt, raw_content[:4000], enforce_json=True)
+        if res and res.get("name"):
+            return {
+                "name": res.get("name"),
+                "title": res.get("title") or "Chief Executive Officer"
+            }
         return None
+
+    async def _parse_with_hermes(self, raw_content: str) -> Optional[Dict[str, Any]]:
+        """Backward-compatible delegation to _extract_decision_maker_with_hermes."""
+        return await self._extract_decision_maker_with_hermes(raw_content)
 
     # ---------- STEP 2: ZERO-BOUNCE ENRICHMENT & VALIDATION ----------
     def generate_email_permutations(self, full_name: str, domain: str) -> List[str]:
