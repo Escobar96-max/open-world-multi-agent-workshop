@@ -13,6 +13,7 @@ Responsibilities:
 
 import asyncio
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -43,11 +44,11 @@ class LailaSupervisor:
         
         # Location detection
         location = "United States"
-        if "texas" in d_lower or "tx" in d_lower:
+        if bool(re.search(r"\b(?:texas|tx)\b", d_lower)):
             location = "Texas, USA"
-        elif "california" in d_lower or "ca" in d_lower:
+        elif bool(re.search(r"\b(?:california|ca)\b", d_lower)):
             location = "California, USA"
-        elif "florida" in d_lower:
+        elif bool(re.search(r"\bflorida\b", d_lower)):
             location = "Florida, USA"
 
         # Industry / Niche
@@ -62,7 +63,7 @@ class LailaSupervisor:
 
         # Titles
         titles = ["Chief Executive Officer", "Founder", "President", "Managing Director"]
-        if "coo" in d_lower or "operations" in d_lower:
+        if bool(re.search(r"\b(?:coo|operations)\b", d_lower)):
             titles.append("Chief Operating Officer")
 
         return {

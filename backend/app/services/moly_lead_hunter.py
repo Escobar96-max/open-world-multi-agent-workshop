@@ -173,10 +173,8 @@ class MolyLeadEngine:
                 break
 
         if not match:
-            # Fallback algorithmic resolution
-            first_name = "Marcus" if "freight" in company_name.lower() else "Clayton"
-            last_name = "Vance" if "freight" in company_name.lower() else "Brooks"
-            match = {"name": f"{first_name} {last_name}", "title": "Chief Executive Officer"}
+            self.log_telemetry(f"Tier 2 agent-reach found no active leads for '{company_name}' ({domain})")
+            return None
 
         result = {
             "name": match["name"],
@@ -440,7 +438,7 @@ If not found, output: {{"name": null}}"""
         Saves a local permanent backup of verified leads in Obsidian vault:
         ./vault/Leads/MOLY_{date}.md
         """
-        today = datetime.now(timezone.utc).strftime("%Y%m%d")
+        today = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         filename = f"MOLY_{today}_{re.sub(r'[^a-zA-Z0-9]', '_', niche).lower()}.md"
         out_path = self.vault_leads_path / filename
@@ -531,12 +529,13 @@ tags:
                     verified_email = cand
                     break
 
+            is_verified = verified_email is not None
             if not verified_email:
                 verified_email = perms[0] if perms else f"ceo@{c_dom}"
 
             lead["email"] = verified_email
             lead["phone"] = self.audit_phone_line(entity.get("phone"))
-            lead["verified_smtp"] = True
+            lead["verified_smtp"] = is_verified
 
             # Stage 3: Google Sheets Sync
             await self.append_to_sheet_via_vlone(target_sheet_url, lead)

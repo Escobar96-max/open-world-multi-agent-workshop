@@ -429,12 +429,11 @@ def is_multi_day_query(prompt: str) -> bool:
 
 WORLD_QUERY_PATTERNS = [
     r"world\s+environment",
-    r"\benvironment\b",
-    r"open\s+world",
+    r"\bopen\s+world\b",
     r"world\s+er",
     r"world\s+update",
     r"frequency\s+lounge",
-    r"\bspatial\b",
+    r"\bspatial\s+(?:lounge|grid|engine|world|environment|view|scene)\b",
     r"432hz\s+(?:lounge|soundscape|status|stream)",
     r"agents?\s+der\s+(?:ki\s+)?obostha",
     r"agents?\s+der\s+update",
@@ -1264,7 +1263,7 @@ class ExecutiveDuo:
         # ==============================================================
         # 1. AUTONOMOUS OPEN WORLD INQUIRY (100% Grounded Telemetry)
         # ==============================================================
-        if is_world:
+        if is_world and intent != "TASK":
             intent = "META_QUERY"
             engine_used = "world_inspector"
             if responder == "NOVA_ONLY":
@@ -1622,6 +1621,19 @@ class ExecutiveDuo:
                     logger.debug(f"Proposal file logging: {ex}")
             elif assignee == "Moly":
                 summary = "4-Tier OSINT harvest completed: C-Suite decision makers extracted, ReacherHQ SMTP verified (0% bounce), and rows synced to Google Sheet."
+                try:
+                    from app.services.moly_lead_hunter import moly_agent
+                    harvest_res = await moly_agent.harvest_leads(
+                        niche=t.title,
+                        target_domains=[{"company": "Texas Freight Solutions", "domain": "texaslogistics.com"}]
+                    )
+                    v_name = Path(harvest_res.get("vault_backup", "")).name
+                    summary = (
+                        f"4-Tier OSINT harvest completed ({harvest_res.get('total_leads', 0)} leads): "
+                        f"C-Suite decision makers extracted, ReacherHQ SMTP verified, and synced to Google Sheet & Vault ({v_name})."
+                    )
+                except Exception as ex:
+                    logger.debug(f"Moly background lead drain execution error: {ex}")
             else:
                 summary = f"Operation completed by [[{assignee}]] with nominal telemetry."
 

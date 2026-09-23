@@ -5,6 +5,7 @@ Task Kanban boards, and Group Chat Hubs.
 """
 
 import asyncio
+import os
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -215,10 +216,16 @@ async def send_proactive_notification_endpoint(req: ProactiveNotificationRequest
     return res
 
 
+DEFAULT_LEADS_SHEET = os.getenv(
+    "DEFAULT_LEADS_SHEET_URL",
+    "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
+)
+
+
 class LeadCampaignRequest(BaseModel):
     niche: str
     criteria: Optional[str] = None
-    target_sheet_url: Optional[str] = "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
+    target_sheet_url: Optional[str] = None
     domains: Optional[List[Dict[str, str]]] = None
     operator: Optional[str] = "Boss"
 
@@ -231,10 +238,11 @@ async def execute_lead_campaign_endpoint(req: LeadCampaignRequest):
     runs ReacherHQ SMTP verification, updates Google Sheets, and sends proactive alert.
     """
     from app.services.laila_supervisor import laila_manager
+    sheet_url = req.target_sheet_url or DEFAULT_LEADS_SHEET
     res = await laila_manager.execute_lead_campaign(
         niche=req.niche,
         criteria=req.criteria,
-        target_sheet_url=req.target_sheet_url or "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit",
+        target_sheet_url=sheet_url,
         target_domains=req.domains,
         operator=req.operator or "Boss"
     )

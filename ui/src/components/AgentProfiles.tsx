@@ -49,8 +49,11 @@ export const AgentProfiles: React.FC = () => {
 
   const fetchAgents = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/training/agents');
-      if (res.ok) {
+      let res = await fetch('/api/v1/training/agents').catch(() => null);
+      if (!res || !res.ok) {
+        res = await fetch('http://127.0.0.1:8000/api/v1/training/agents');
+      }
+      if (res && res.ok) {
         const data = await res.json();
         setAgents(data);
         if (data.length > 0 && !selectedAgentId) {
@@ -87,7 +90,7 @@ export const AgentProfiles: React.FC = () => {
     setIsSubmitting(true);
     setFeedbackMsg(null);
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/training/assign', {
+      let res = await fetch('/api/v1/training/assign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -95,15 +98,27 @@ export const AgentProfiles: React.FC = () => {
           topic: topicInput.trim(),
           task: taskInput.trim() || 'Verify architectural implementation and solve test suite'
         })
-      });
+      }).catch(() => null);
 
-      if (res.ok) {
+      if (!res || !res.ok) {
+        res = await fetch('http://127.0.0.1:8000/api/v1/training/assign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agent_id: selectedAgent.agent_id,
+            topic: topicInput.trim(),
+            task: taskInput.trim() || 'Verify architectural implementation and solve test suite'
+          })
+        });
+      }
+
+      if (res && res.ok) {
         setFeedbackMsg(`🚀 Training initiated for ${selectedAgent.name}! Ingesting Web + YouTube + Soup Zero.`);
         setTopicInput('');
         setTaskInput('');
         fetchAgents();
       } else {
-        const err = await res.json();
+        const err = res ? await res.json().catch(() => ({})) : {};
         setFeedbackMsg(`⚠️ Error: ${err.detail || 'Failed to start training'}`);
       }
     } catch (err: any) {

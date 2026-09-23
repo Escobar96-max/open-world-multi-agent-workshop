@@ -61,9 +61,9 @@ class Spatial3DBroadcaster:
 
     async def broadcast(self, payload: dict):
         disconnected = []
-        for ws in self.active_sockets:
+        for ws in list(self.active_sockets):
             try:
-                await ws.send_json(payload)
+                await asyncio.wait_for(ws.send_json(payload), timeout=2.0)
             except Exception:
                 disconnected.append(ws)
         for ws in disconnected:

@@ -211,7 +211,7 @@ class LayaDecisionEngine:
             if any(_has_word(w) for w in effective_actionable):
                 return "TASK", 0.93
 
-            return "CONVERSATION", 0.88
+            return "CONVERSATION", 0.70
 
         # 2. Persona Targeting: ["ORION_ONLY", "NOVA_ONLY", "DUO"]
         if "ORION_ONLY" in options and "NOVA_ONLY" in options:

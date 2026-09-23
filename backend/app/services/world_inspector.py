@@ -100,11 +100,17 @@ class WorldInspector:
                                 summary = ""
                                 lines = text.splitlines()
                                 title = latest_file.stem
-                                for line in lines:
+                                for idx, line in enumerate(lines):
                                     if line.startswith("title:"):
                                         title = line.replace("title:", "").strip().strip("'\"")
                                     elif line.startswith("## ") or line.startswith("### "):
-                                        summary = line.strip("# ")
+                                        heading_text = line.strip("# ")
+                                        # Look for subsequent body text
+                                        body_lines = [
+                                            l.strip() for l in lines[idx + 1:idx + 6]
+                                            if l.strip() and not l.startswith("#") and not l.startswith("---")
+                                        ]
+                                        summary = f"{heading_text}: {body_lines[0]}" if body_lines else heading_text
                                         break
                                 if not summary:
                                     summary = text[:250].strip()

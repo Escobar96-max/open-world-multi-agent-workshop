@@ -207,8 +207,13 @@ class SpatialEngine:
             "gatekeeper": (12.0, 14.0),
             "sanctum": (35.0, 35.0)
         }
-        key = zone_or_preset.lower().replace(" ", "_")
-        coords = target_coords.get(key, (25.0, 25.0))
+        key = zone_or_preset.lower().replace(" ", "_").replace("-", "_")
+        if key not in target_coords:
+            return {
+                "success": False,
+                "error": f"Unknown spatial zone or preset '{zone_or_preset}'. Valid options: {list(target_coords.keys())}"
+            }
+        coords = target_coords[key]
 
         res = self.update_position(agent_id, coords[0], coords[1])
         if res.get("success"):
