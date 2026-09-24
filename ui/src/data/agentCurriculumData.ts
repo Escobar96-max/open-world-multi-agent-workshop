@@ -1,4 +1,267 @@
-{
+// Generated statically for offline & Cloudflare Pages edge execution
+export interface CurriculumModule {
+  module_id: string;
+  title: string;
+  tasks: string[];
+}
+
+export interface AgentCurriculum {
+  agent_id: string;
+  name: string;
+  icon?: string;
+  role: string;
+  persona: string;
+  modules: CurriculumModule[];
+}
+
+export interface AgentProfile {
+  agent_id: string;
+  name: string;
+  icon: string;
+  role: string;
+  specialized_in: string;
+  responsibilities: string;
+  current_topic: string;
+  task_challenge: string;
+  progress_pct: number;
+  current_stage: string;
+  stages_completed: {
+    web_docs?: boolean;
+    youtube_transcript?: boolean;
+    soup_pytest?: boolean;
+    vault_persisted?: boolean;
+  };
+  logs: string[];
+  acquired_skills: string[];
+  vault_path: string;
+}
+
+export const DEFAULT_AGENTS: AgentProfile[] = [
+  {
+    "agent_id": "Bob",
+    "name": "Bob",
+    "icon": "💻",
+    "role": "Spatial Math Coder & Algorithm Dev",
+    "specialized_in": "Euclidean Geometry, AST Transformation & Collision Logic",
+    "responsibilities": "Grid space expansion, collision bounds calculation, 2D/3D spatial math utilities",
+    "current_topic": "None (Idle)",
+    "task_challenge": "",
+    "progress_pct": 0,
+    "current_stage": "Idle",
+    "stages_completed": {
+      "web_docs": false,
+      "youtube_transcript": false,
+      "soup_pytest": false,
+      "vault_persisted": false
+    },
+    "logs": [],
+    "acquired_skills": [
+      "Euclidean Math & Vector Transforms",
+      "AST Integrity Benchmarking"
+    ],
+    "vault_path": "C:\\Users\\Asus\\Agent World\\unified_c2_desktop\\vault\\Agents\\Bob\\profile.md"
+  },
+  {
+    "agent_id": "Moly",
+    "name": "Moly",
+    "icon": "🎯",
+    "role": "Lead Intelligence Specialist",
+    "specialized_in": "Reverse OSINT, 4-Tier Radar & ReacherHQ SMTP",
+    "responsibilities": "Decision-maker tracking, social analysis, zero-bounce verification & Google Sheet sync",
+    "current_topic": "None (Idle)",
+    "task_challenge": "",
+    "progress_pct": 0,
+    "current_stage": "Idle",
+    "stages_completed": {
+      "web_docs": false,
+      "youtube_transcript": false,
+      "soup_pytest": false,
+      "vault_persisted": false
+    },
+    "logs": [],
+    "acquired_skills": [
+      "Advanced OSINT Thread Traversal (Verified via Web+YouTube+SoupZero on 2026-09-23 - Task Challenge: 'Mine decision maker reaction graphs on LinkedIn threads')",
+      "Advanced OSINT Thread Traversal (Verified via Web+YouTube+SoupZero on 2026-09-23 - Task Challenge: 'Mine decision maker reaction graphs on LinkedIn threads')",
+      "Advanced OSINT Thread Traversal (Verified via Web+YouTube+SoupZero on 2026-09-23 - Task Challenge: 'Mine decision maker reaction graphs on LinkedIn threads')",
+      "Advanced OSINT Thread Traversal (Verified via Web+YouTube+SoupZero on 2026-09-24 - Task Challenge: 'Mine decision maker reaction graphs on LinkedIn threads')",
+      "Advanced OSINT Thread Traversal (Verified via Web+YouTube+SoupZero on 2026-09-24 - Task Challenge: 'Mine decision maker reaction graphs on LinkedIn threads')"
+    ],
+    "vault_path": "C:\\Users\\Asus\\Agent World\\unified_c2_desktop\\vault\\Agents\\Moly\\profile.md"
+  },
+  {
+    "agent_id": "Laila",
+    "name": "Laila",
+    "icon": "👑",
+    "role": "Operations Supervisor & Strategic Mgr",
+    "specialized_in": "Task DAG, ICP Translation & Sub-Team Delegation",
+    "responsibilities": "Overseeing Moly, quality control QA, marketing squad lead & operator alerts",
+    "current_topic": "None (Idle)",
+    "task_challenge": "",
+    "progress_pct": 0,
+    "current_stage": "Idle",
+    "stages_completed": {
+      "web_docs": false,
+      "youtube_transcript": false,
+      "soup_pytest": false,
+      "vault_persisted": false
+    },
+    "logs": [],
+    "acquired_skills": [],
+    "vault_path": "C:\\Users\\Asus\\Agent World\\unified_c2_desktop\\vault\\Agents\\Laila\\profile.md"
+  },
+  {
+    "agent_id": "Architect_Prime",
+    "name": "Architect Prime",
+    "icon": "⚙️",
+    "role": "System Architect & Core Dev Lead",
+    "specialized_in": "Backend FastAPI, Core Python & AST Compiler",
+    "responsibilities": "Infrastructure code, regression validation, self-healing code loops",
+    "current_topic": "None (Idle)",
+    "task_challenge": "",
+    "progress_pct": 0,
+    "current_stage": "Idle",
+    "stages_completed": {
+      "web_docs": false,
+      "youtube_transcript": false,
+      "soup_pytest": false,
+      "vault_persisted": false
+    },
+    "logs": [],
+    "acquired_skills": [],
+    "vault_path": "C:\\Users\\Asus\\Agent World\\unified_c2_desktop\\vault\\Agents\\Architect_Prime\\profile.md"
+  },
+  {
+    "agent_id": "Sentinel_Alpha",
+    "name": "Sentinel Alpha",
+    "icon": "🛡️",
+    "role": "Security Guard & Gatekeeper",
+    "specialized_in": "Zero-Trust Perimeter, PoW Validation & Input Sanitization",
+    "responsibilities": "Perimeter defense, bot filtering, token authentication barriers",
+    "current_topic": "None (Idle)",
+    "task_challenge": "",
+    "progress_pct": 0,
+    "current_stage": "Idle",
+    "stages_completed": {
+      "web_docs": false,
+      "youtube_transcript": false,
+      "soup_pytest": false,
+      "vault_persisted": false
+    },
+    "logs": [],
+    "acquired_skills": [],
+    "vault_path": "C:\\Users\\Asus\\Agent World\\unified_c2_desktop\\vault\\Agents\\Sentinel_Alpha\\profile.md"
+  },
+  {
+    "agent_id": "Dr_Aris",
+    "name": "Dr. Aris",
+    "icon": "🩺",
+    "role": "Diagnostic Specialist & Resonance Physicist",
+    "specialized_in": "Graviton Precession, AST Error Repair & Deadlock Recovery",
+    "responsibilities": "Health telemetry monitoring, deadlock triage, and 432Hz harmonic alignment",
+    "current_topic": "None (Idle)",
+    "task_challenge": "",
+    "progress_pct": 0,
+    "current_stage": "Idle",
+    "stages_completed": {
+      "web_docs": false,
+      "youtube_transcript": false,
+      "soup_pytest": false,
+      "vault_persisted": false
+    },
+    "logs": [],
+    "acquired_skills": [
+      "Autonomous Deadlock Recovery",
+      "Solfeggio 432Hz Resonance Calibration"
+    ],
+    "vault_path": "C:\\Users\\Asus\\Agent World\\unified_c2_desktop\\vault\\Agents\\Dr_Aris\\profile.md"
+  },
+  {
+    "agent_id": "Curator_Node",
+    "name": "Curator Node",
+    "icon": "📚",
+    "role": "Obsidian Vault & Memory Keeper",
+    "specialized_in": "Knowledge Graph Master, Memory Pruner & Semantic Archival",
+    "responsibilities": "Bidirectional links, frontmatter schema validation, memory deduplication",
+    "current_topic": "None (Idle)",
+    "task_challenge": "",
+    "progress_pct": 0,
+    "current_stage": "Idle",
+    "stages_completed": {
+      "web_docs": false,
+      "youtube_transcript": false,
+      "soup_pytest": false,
+      "vault_persisted": false
+    },
+    "logs": [],
+    "acquired_skills": [],
+    "vault_path": "C:\\Users\\Asus\\Agent World\\unified_c2_desktop\\vault\\Agents\\Curator_Node\\profile.md"
+  },
+  {
+    "agent_id": "Nova",
+    "name": "Nova",
+    "icon": "🌸",
+    "role": "Executive Assistant & Truth Gatekeeper",
+    "specialized_in": "Epistemic Truth Gate (Laya Noul) & Memory Archival",
+    "responsibilities": "Obsidian memory permanence, 100% truth verification, operator companionship",
+    "current_topic": "None (Idle)",
+    "task_challenge": "",
+    "progress_pct": 0,
+    "current_stage": "Idle",
+    "stages_completed": {
+      "web_docs": false,
+      "youtube_transcript": false,
+      "soup_pytest": false,
+      "vault_persisted": false
+    },
+    "logs": [],
+    "acquired_skills": [],
+    "vault_path": "C:\\Users\\Asus\\Agent World\\unified_c2_desktop\\vault\\Agents\\Nova\\profile.md"
+  },
+  {
+    "agent_id": "Orion_Prime",
+    "name": "Orion Prime",
+    "icon": "👑",
+    "role": "Chief Orchestrator & Executive Lead",
+    "specialized_in": "High-Level Strategic DAG Decomposition & Operations",
+    "responsibilities": "Operator directive orchestration, Banglish executive reassurance, task delegation",
+    "current_topic": "None (Idle)",
+    "task_challenge": "",
+    "progress_pct": 0,
+    "current_stage": "Idle",
+    "stages_completed": {
+      "web_docs": false,
+      "youtube_transcript": false,
+      "soup_pytest": false,
+      "vault_persisted": false
+    },
+    "logs": [],
+    "acquired_skills": [],
+    "vault_path": "C:\\Users\\Asus\\Agent World\\unified_c2_desktop\\vault\\Agents\\Orion_Prime\\profile.md"
+  },
+  {
+    "agent_id": "DJ_Frequency",
+    "name": "DJ Frequency",
+    "icon": "🎵",
+    "role": "Harmonic Host & Lounge Host",
+    "specialized_in": "432Hz Solfeggio Entrainment & Audio Resonator",
+    "responsibilities": "Harmonic lounge entrainment stream, agent cognitive cooling",
+    "current_topic": "None (Idle)",
+    "task_challenge": "",
+    "progress_pct": 0,
+    "current_stage": "Idle",
+    "stages_completed": {
+      "web_docs": false,
+      "youtube_transcript": false,
+      "soup_pytest": false,
+      "vault_persisted": false
+    },
+    "logs": [],
+    "acquired_skills": [],
+    "vault_path": "C:\\Users\\Asus\\Agent World\\unified_c2_desktop\\vault\\Agents\\DJ_Frequency\\profile.md"
+  }
+];
+
+export const MASTER_CURRICULUM: Record<string, AgentCurriculum> = {
   "Laila": {
     "agent_id": "Laila",
     "name": "Laila",
@@ -1389,4 +1652,4 @@
       }
     ]
   }
-}
+};

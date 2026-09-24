@@ -91,7 +91,8 @@ export const VoiceController: React.FC<VoiceControllerProps> = ({
       setRecording(true);
     } catch (err: any) {
       console.error('Microphone access denied or unsupported:', err);
-      setErrorMsg('Microphone access denied or unavailable.');
+      setErrorMsg('Microphone unavailable. Use quick prompt buttons below!');
+      setTimeout(() => setErrorMsg(null), 4000);
       setRecording(false);
     }
   };
@@ -137,7 +138,10 @@ export const VoiceController: React.FC<VoiceControllerProps> = ({
       </button>
 
       {errorMsg && (
-        <span className="absolute -top-7 left-0 text-[10px] text-rose-400 bg-slate-950/90 px-2 py-0.5 rounded border border-rose-800/80 whitespace-nowrap z-30 shadow-md">
+        <span 
+          onClick={() => setErrorMsg(null)}
+          className="absolute -top-7 left-0 text-[10px] text-amber-300 bg-slate-950/95 px-2.5 py-0.5 rounded border border-amber-500/60 whitespace-nowrap z-30 shadow-md cursor-pointer"
+        >
           {errorMsg}
         </span>
       )}
@@ -145,8 +149,19 @@ export const VoiceController: React.FC<VoiceControllerProps> = ({
   );
 };
 
+const speakFallback = (rawText: string, persona: 'Nova' | 'Orion') => {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const clean = rawText.replace(/[*_#`~[\]()]/g, ' ').replace(/\s+/g, ' ').trim();
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.rate = 1.02;
+    utterance.pitch = persona === 'Nova' ? 1.25 : 0.92;
+    window.speechSynthesis.speak(utterance);
+  }
+};
+
 /**
- * Helper to play spoken audio response using Edge-TTS
+ * Helper to play spoken audio response using Edge-TTS with SpeechSynthesis fallback
  */
 export const playAgentVoice = async (text: string, persona: 'Nova' | 'Orion' = 'Nova'): Promise<void> => {
   try {
@@ -158,21 +173,28 @@ export const playAgentVoice = async (text: string, persona: 'Nova' | 'Orion' = '
     formData.append('text', text);
     formData.append('persona', persona);
 
-    const res = await fetch(`${baseUrl}/api/v1/voice/speak`, {
+    let res = await fetch(`${baseUrl}/api/v1/voice/speak`, {
       method: 'POST',
       body: formData,
-    });
+    }).catch(() => null);
 
-    if (!res.ok) {
-      console.warn('Voice synthesis failed with status:', res.status);
+    if (!res || !res.ok) {
+      res = await fetch('http://127.0.0.1:8000/api/v1/voice/speak', {
+        method: 'POST',
+        body: formData,
+      }).catch(() => null);
+    }
+
+    if (!res || !res.ok) {
+      speakFallback(text, persona);
       return;
     }
 
     const blob = await res.blob();
     const audioUrl = URL.createObjectURL(blob);
     const audio = new Audio(audioUrl);
-    audio.play();
+    audio.play().catch(() => speakFallback(text, persona));
   } catch (err) {
-    console.error('Audio playback error:', err);
+    speakFallback(text, persona);
   }
 };

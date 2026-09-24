@@ -1609,7 +1609,7 @@ class ExecutiveDuo:
                     logger.debug(f"Hermes backstage execution note: {ex}")
 
             if assignee == "Vlone_Browser":
-                summary = hermes_output or "Semantic DOM scan completed: 0 MAP violations, token compression nominal."
+                summary = f"Vlone Semantic DOM: {hermes_output}" if hermes_output else "Vlone Semantic DOM scan completed: 0 MAP violations, token compression nominal."
             elif assignee == "Soup_Zero":
                 summary = "Sanctum RLVR verification passed: AST validated (+5 reputation score awarded)."
                 try:

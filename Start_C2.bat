@@ -33,6 +33,21 @@ if "%PYTHON_EXE%"=="" (
     exit /b 1
 )
 
-:: Launch C2 Desktop in a detached window and exit launcher script
-start "Antigravity C2 Executive Desk" "%PYTHON_EXE%" "%~dp0run_desktop.py" %*
+:: Launch C2 Desktop with error trapping and diagnostics
+echo ===================================================================
+echo   Starting Antigravity Unified C2 Desktop Executive System...
+echo   Python: %PYTHON_EXE%
+echo ===================================================================
+
+"%PYTHON_EXE%" "%~dp0run_desktop.py" %*
+if !errorlevel! neq 0 (
+    echo.
+    echo ===================================================================
+    echo [ERROR] Antigravity C2 Desktop exited with code !errorlevel!.
+    echo Check launcher.log for details, or install missing dependencies:
+    echo   "%PYTHON_EXE%" -m pip install -r "%~dp0requirements.txt"
+    echo ===================================================================
+    pause
+    exit /b !errorlevel!
+)
 exit /b 0

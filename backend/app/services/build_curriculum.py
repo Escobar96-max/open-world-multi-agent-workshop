@@ -1259,6 +1259,145 @@ CURRICULUM_DATA = {
                 ]
             }
         ]
+    },
+    "Bob": {
+        "agent_id": "Bob",
+        "name": "Bob",
+        "icon": "💻",
+        "role": "Spatial Math Coder & Algorithm Dev",
+        "persona": "Precision Geometric Engineer, AST Syntactic Architect, Collision Bounds Calculator, RLVR Math Benchmark Tester.",
+        "modules": [
+            {
+                "module_id": "A",
+                "title": "Euclidean Vectors, Projection & Coordinate Transformation",
+                "tasks": [
+                    "Compute normalized 2D direction vectors between arbitrary agent world coordinates.",
+                    "Implement 3D Euclidean distance calculations with sub-millisecond vectorized NumPy math.",
+                    "Create an affine transform matrix for scaling and rotating agent bounding footprints.",
+                    "Calculate dot-product projection of agent velocity onto terrain normals.",
+                    "Implement spherical linear interpolation (Slerp) for smooth agent orientation blending.",
+                    "Design polar coordinate conversion utilities for radar display rendering.",
+                    "Calculate cross-product normal vectors for 3D obstacle avoidance meshes.",
+                    "Construct an origin-recentering transform for infinite floating-origin coordinate spaces.",
+                    "Implement bilinear interpolation for sampling heightmap elevation data.",
+                    "Build a fast Manhattan distance metric for Manhattan-grid path scoring.",
+                    "Calculate tangent and bitangent vectors for directional ground friction.",
+                    "Implement Hermite spline curve evaluation for cinematic agent trajectory smoothing.",
+                    "Compute point-to-line segment minimum distance for boundary wall proximity checks.",
+                    "Create a quaternion rotation handler for gimbal-lock free 3D orientation.",
+                    "Calculate barycentric coordinates for point containment within triangle meshes.",
+                    "Implement perspective projection matrices for isometric 2D viewport rendering.",
+                    "Design a viewport frustum culling box calculation for spatial agent occlusion.",
+                    "Calculate Voronoi partition cells for agent territory balancing.",
+                    "Implement catmull-rom splines for dynamic path generation through checkpoints.",
+                    "Build a coordinate space validator preventing NaN and infinity propagation in physics tick."
+                ]
+            },
+            {
+                "module_id": "B",
+                "title": "2D/3D Collision Detection, Bounding Boxes & Spatial Partitioning",
+                "tasks": [
+                    "Implement Separating Axis Theorem (SAT) for convex polygon collision detection.",
+                    "Construct an Axis-Aligned Bounding Box (AABB) intersection check with early-out branch.",
+                    "Build an Oriented Bounding Box (OBB) overlap test using projection intervals.",
+                    "Create a dynamic 2D Quadtree spatial partitioning tree for 1,000 active entities.",
+                    "Implement continuous collision detection (CCD) to prevent high-speed tunneling.",
+                    "Design a circle-to-AABB collision resolution algorithm with minimum translation vector.",
+                    "Construct a spatial hash grid with O(1) entity neighbor lookups.",
+                    "Implement ray-to-sphere intersection formulas returning hit point and surface normal.",
+                    "Build a swept-AABB test for predicting collision time within the current physics frame.",
+                    "Calculate penetration depth and contact normal for elastic collision response.",
+                    "Implement capsule-to-capsule distance queries for humanoid agent collision envelopes.",
+                    "Create an Octree spatial partition data structure for hierarchical 3D spatial indexing.",
+                    "Design collision filtering bitmasks for agent factions, terrain, and sensory zones.",
+                    "Implement broad-phase bounding volume hierarchy (BVH) with surface area heuristic.",
+                    "Build a convex hull generation algorithm (Graham scan) from arbitrary point clouds.",
+                    "Calculate minimum enclosing circle for agent flock perimeter calculation.",
+                    "Implement ray-to-triangle Moller-Trumbore intersection algorithm.",
+                    "Design an edge-case handler for coplanar and degenerate collision geometries.",
+                    "Construct a kinematic resolution resolver that decouples overlapping entities without jitter.",
+                    "Build deterministic unit tests verifying zero tunneling across 10,000 simulated collisions."
+                ]
+            },
+            {
+                "module_id": "C",
+                "title": "Abstract Syntax Tree (AST) Transformation & Code Grammar Parsing",
+                "tasks": [
+                    "Parse raw Python source strings into typed ast.AST module trees without execution.",
+                    "Implement an ast.NodeTransformer that renames deprecated function calls across modules.",
+                    "Construct an automated AST visitor that computes cyclomatic complexity per function.",
+                    "Inject runtime telemetry logging wrappers into all FastAPI route decorators via AST.",
+                    "Design a linting rule using AST nodes that flags unawaited coroutines in async defs.",
+                    "Build an AST validator ensuring all Pydantic models contain strict type annotations.",
+                    "Transform synchronous file I/O calls into non-blocking aiofiles calls using AST rewriting.",
+                    "Generate deterministic mock test fixtures by analyzing function argument signatures.",
+                    "Extract all docstrings and markdown comment blocks into structured OpenAPI documentation.",
+                    "Construct an AST-level dead code eliminator for unused private helper functions.",
+                    "Design a security sanitizer AST visitor that flags raw eval() or unsafe exec() calls.",
+                    "Implement automatic try/except wrap injection for external network socket calls.",
+                    "Parse TypeScript interface declarations and generate synchronized Pydantic schemas.",
+                    "Build an AST diffing engine comparing two code versions and isolating behavioral changes.",
+                    "Transform nested if-else ladders into clean pattern matching (match/case) constructs.",
+                    "Extract database SQL query strings from ORM method calls for query plan analysis.",
+                    "Generate AST-level property getters and setters with automated bounds validation.",
+                    "Verify type-soundness of lambda expressions before compilation into bytecode.",
+                    "Build an automated regression test generator that synthesizes boundary inputs from AST types.",
+                    "Implement unparse() code formatting that outputs PEP 8 compliant source from modified AST."
+                ]
+            },
+            {
+                "module_id": "D",
+                "title": "Physics Tick Loop, Raycasting & Velocity Constraints",
+                "tasks": [
+                    "Design a fixed-timestep physics update loop (delta_t = 1/60s) with accumulator.",
+                    "Implement Verlet integration for numerically stable particle and ragdoll kinematics.",
+                    "Calculate linear drag and atmospheric resistance opposing agent movement vectors.",
+                    "Implement dynamic friction and restitution coefficients for surface interactions.",
+                    "Construct a multi-ray raycast fan for agent obstacle anticipation and lidar simulation.",
+                    "Build velocity clamping and acceleration curves for realistic agent locomotion feel.",
+                    "Implement PID controller for precise target-seeking drone agent velocity regulation.",
+                    "Design a steering behavior system including seek, flee, arrive, and wander forces.",
+                    "Construct a Reynolds boid flocking simulation: separation, alignment, and cohesion.",
+                    "Implement spring-damper constraint solvers for soft-body entity attachments.",
+                    "Calculate centrifugal force and banking angles for agents navigating tight curves.",
+                    "Design gravity gradient calculations for non-uniform orbital and planetary environments.",
+                    "Implement ray-marching distance field queries for volumetric obstacle queries.",
+                    "Build a velocity obstacle (VO) algorithm for multi-agent reciprocal collision avoidance.",
+                    "Construct a continuous impulse accumulator preventing energy drift in closed systems.",
+                    "Implement angular momentum conservation and moment of inertia tensor math.",
+                    "Design an agent path-following steering algorithm with predictive waypoint lookahead.",
+                    "Build a physics state serialization mechanism for snapshotting and rollback rewind.",
+                    "Implement sleep/wake thresholds for resting physics entities to conserve CPU cycles.",
+                    "Benchmark 60 FPS tick stability with 500 simultaneous active agents under load."
+                ]
+            },
+            {
+                "module_id": "E",
+                "title": "Deterministic RLVR Pytest Benchmarking & Algorithmic Optimizations",
+                "tasks": [
+                    "Write deterministic Pytest test suite for vector math accuracy within 1e-9 tolerance.",
+                    "Implement Soup Zero RLVR reward verification function scoring spatial path efficiency.",
+                    "Benchmark SIMD vector operations using NumPy vs pure Python arithmetic loops.",
+                    "Design memory-aligned struct arrays for cache-friendly agent coordinate buffers.",
+                    "Implement binary search spatial lookup for sorted 1D projection coordinates.",
+                    "Construct property-based tests (Hypothesis) fuzzing collision bounds with extreme floats.",
+                    "Profile garbage collection latency and eliminate intermediate object allocations in tick.",
+                    "Build a deterministic pseudo-random number generator (PRNG) with reproducible seeds.",
+                    "Implement spatial Morton code (Z-order curve) hashing for 2D spatial locality sorting.",
+                    "Design a reward function penalizing agent erratic acceleration and jerky steering.",
+                    "Construct automated regression tests asserting zero deadlock in async worker pool.",
+                    "Verify floating-point precision consistency across Windows x86_64 and Linux runtimes.",
+                    "Implement fast inverse square root algorithm (Quake III style) and benchmark error margin.",
+                    "Design an automated test harness asserting all 100 curriculum skills pass in pytest.",
+                    "Build memory leak detection assertions for long-running 24-hour simulation runs.",
+                    "Implement branchless minimum and maximum functions for vector component clamping.",
+                    "Construct a continuous integration assertion pipeline for spatial engine pull requests.",
+                    "Design a formal proof verifier ensuring bounding volumes enclose all child primitives.",
+                    "Implement automated micro-benchmarks tracking nanosecond improvements per commit.",
+                    "Achieve 100% test coverage across all spatial math, AST, and collision engine modules."
+                ]
+            }
+        ]
     }
 }
 
