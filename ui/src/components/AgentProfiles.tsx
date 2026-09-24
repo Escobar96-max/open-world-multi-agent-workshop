@@ -14,8 +14,24 @@ import {
   Check, 
   ChevronRight, 
   Terminal,
-  Activity
+  Activity,
+  Layers,
+  GraduationCap
 } from 'lucide-react';
+
+interface CurriculumModule {
+  module_id: string;
+  title: string;
+  tasks: string[];
+}
+
+interface AgentCurriculum {
+  agent_id: string;
+  name: string;
+  role: string;
+  persona: string;
+  modules: CurriculumModule[];
+}
 
 interface AgentProfile {
   agent_id: string;
@@ -41,11 +57,16 @@ interface AgentProfile {
 
 export const AgentProfiles: React.FC = () => {
   const [agents, setAgents] = useState<AgentProfile[]>([]);
-  const [selectedAgentId, setSelectedAgentId] = useState<string>('Bob');
+  const [selectedAgentId, setSelectedAgentId] = useState<string>('Laila');
   const [topicInput, setTopicInput] = useState<string>('');
   const [taskInput, setTaskInput] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+
+  // Curriculum state
+  const [curriculum, setCurriculum] = useState<AgentCurriculum | null>(null);
+  const [activeModuleTab, setActiveModuleTab] = useState<string>('A');
+  const [loadingCurriculum, setLoadingCurriculum] = useState<boolean>(false);
 
   const fetchAgents = async () => {
     try {
@@ -65,9 +86,36 @@ export const AgentProfiles: React.FC = () => {
     }
   };
 
+  const fetchCurriculum = async (agentId: string) => {
+    setLoadingCurriculum(true);
+    try {
+      let res = await fetch(`/api/v1/training/curriculum/${agentId}`).catch(() => null);
+      if (!res || !res.ok) {
+        res = await fetch(`http://127.0.0.1:8000/api/v1/training/curriculum/${agentId}`);
+      }
+      if (res && res.ok) {
+        const data = await res.json();
+        setCurriculum(data);
+      } else {
+        setCurriculum(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch curriculum:', err);
+      setCurriculum(null);
+    } finally {
+      setLoadingCurriculum(false);
+    }
+  };
+
   useEffect(() => {
     fetchAgents();
   }, []);
+
+  useEffect(() => {
+    if (selectedAgentId) {
+      fetchCurriculum(selectedAgentId);
+    }
+  }, [selectedAgentId]);
 
   // Poll when any agent is actively training
   useEffect(() => {
@@ -83,9 +131,12 @@ export const AgentProfiles: React.FC = () => {
 
   const selectedAgent = agents.find(a => a.agent_id === selectedAgentId) || agents[0];
 
-  const handleStartTraining = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!topicInput.trim() || !selectedAgent) return;
+  const handleStartTraining = async (e?: React.FormEvent, customTopic?: string, customTask?: string) => {
+    if (e) e.preventDefault();
+    const targetTopic = (customTopic || topicInput).trim();
+    const targetTask = (customTask || taskInput || 'Verify architectural implementation and solve test suite').trim();
+
+    if (!targetTopic || !selectedAgent) return;
 
     setIsSubmitting(true);
     setFeedbackMsg(null);
@@ -95,8 +146,8 @@ export const AgentProfiles: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           agent_id: selectedAgent.agent_id,
-          topic: topicInput.trim(),
-          task: taskInput.trim() || 'Verify architectural implementation and solve test suite'
+          topic: targetTopic,
+          task: targetTask
         })
       }).catch(() => null);
 
@@ -106,16 +157,18 @@ export const AgentProfiles: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             agent_id: selectedAgent.agent_id,
-            topic: topicInput.trim(),
-            task: taskInput.trim() || 'Verify architectural implementation and solve test suite'
+            topic: targetTopic,
+            task: targetTask
           })
         });
       }
 
       if (res && res.ok) {
-        setFeedbackMsg(`🚀 Training initiated for ${selectedAgent.name}! Ingesting Web + YouTube + Soup Zero.`);
-        setTopicInput('');
-        setTaskInput('');
+        setFeedbackMsg(`🚀 Training initiated for ${selectedAgent.name}! Ingesting Web Docs + YouTube Transcripts + Soup Zero RLVR.`);
+        if (!customTopic) {
+          setTopicInput('');
+          setTaskInput('');
+        }
         fetchAgents();
       } else {
         const err = res ? await res.json().catch(() => ({})) : {};
@@ -136,14 +189,14 @@ export const AgentProfiles: React.FC = () => {
       <div className="h-14 px-5 bg-slate-900/80 border-b border-slate-800/80 flex items-center justify-between backdrop-blur-md">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
-            <Bot className="w-5 h-5" />
+            <GraduationCap className="w-5 h-5 text-indigo-400" />
           </div>
           <div>
             <h2 className="text-sm font-black tracking-wider uppercase bg-gradient-to-r from-cyan-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
-              🎴 Agent Profiles & Training Ground
+              🎴 Agent Profiles & 10-Day Training Ground (100-Task Curriculum)
             </h2>
             <p className="text-[11px] text-slate-400">
-              Multi-Source Ingestion: Google Web Docs ➔ YouTube Transcripts ➔ Soup Zero Deterministic RLVR Sandbox
+              Multi-Source Pipeline: Google Web Docs ➔ YouTube Transcripts ➔ Soup Zero Deterministic RLVR Sandbox
             </p>
           </div>
         </div>
@@ -169,9 +222,9 @@ export const AgentProfiles: React.FC = () => {
         <div className="lg:col-span-4 border-r border-slate-800/80 bg-slate-950/60 flex flex-col overflow-hidden">
           <div className="p-3 bg-slate-900/40 border-b border-slate-800/60 flex items-center justify-between">
             <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-              <span>👥</span> Agent Roster
+              <span>👥</span> Core Agent Roster
             </span>
-            <span className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Select to Inspect</span>
+            <span className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Select to Train</span>
           </div>
 
           <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
@@ -244,7 +297,7 @@ export const AgentProfiles: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Inspector & Training Suite */}
+        {/* Right Column: Inspector & 100-Task Master Curriculum */}
         <div className="lg:col-span-8 flex flex-col overflow-y-auto bg-slate-900/20">
           {selectedAgent ? (
             <div className="p-5 space-y-5">
@@ -273,13 +326,13 @@ export const AgentProfiles: React.FC = () => {
                 </div>
 
                 <div className="text-right">
-                  <span className="text-[10px] uppercase tracking-wider text-slate-500 block font-mono">Cognitive Status</span>
+                  <span className="text-[10px] uppercase tracking-wider text-slate-500 block font-mono">Cognitive State</span>
                   <span className={`text-xs font-bold font-mono px-2.5 py-1 rounded-md inline-block mt-1 ${
                     selectedAgent.progress_pct > 0 && selectedAgent.progress_pct < 100
                       ? 'bg-amber-950/80 text-amber-300 border border-amber-700'
                       : 'bg-emerald-950/60 text-emerald-300 border border-emerald-800'
                   }`}>
-                    {selectedAgent.progress_pct > 0 && selectedAgent.progress_pct < 100 ? '⚡ ACTIVE TRAINING' : 'ACTIVE / IDLE'}
+                    {selectedAgent.progress_pct > 0 && selectedAgent.progress_pct < 100 ? '⚡ ACTIVE TRAINING' : 'ACTIVE / READY'}
                   </span>
                 </div>
               </div>
@@ -308,7 +361,7 @@ export const AgentProfiles: React.FC = () => {
                     ))
                   ) : (
                     <span className="text-xs text-slate-500 italic">
-                      No external certifications logged yet. Assign a training topic below to ingest knowledge.
+                      No external certifications logged yet. Select a topic from the 100-Task Curriculum below to ingest knowledge.
                     </span>
                   )}
                 </div>
@@ -419,17 +472,118 @@ export const AgentProfiles: React.FC = () => {
                 )}
               </div>
 
+              {/* 10-DAY MASTER CURRICULUM BROWSER (100 TOPICS) */}
+              <div className="p-4 rounded-xl bg-slate-950/90 border border-slate-800 space-y-3 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-amber-400" />
+                    <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                      10-Day Master Curriculum (5 Modules × 20 Tasks = 100 Objectives)
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800">
+                    Click Any Task to Instant-Train
+                  </span>
+                </div>
+
+                {curriculum ? (
+                  <div className="space-y-3">
+                    {/* Module Tabs (A, B, C, D, E) */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-800/80">
+                      {curriculum.modules.map((mod) => (
+                        <button
+                          key={mod.module_id}
+                          onClick={() => setActiveModuleTab(mod.module_id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                            activeModuleTab === mod.module_id
+                              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-950'
+                              : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                          }`}
+                        >
+                          <span>Module {mod.module_id}</span>
+                          <span className="text-[10px] opacity-75 font-normal">
+                            ({mod.tasks.length})
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Active Module Header */}
+                    {(() => {
+                      const currentMod = curriculum.modules.find(m => m.module_id === activeModuleTab) || curriculum.modules[0];
+                      if (!currentMod) return null;
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs text-slate-300">
+                            <span className="font-semibold text-indigo-300">
+                              Module {currentMod.module_id}: {currentMod.title}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              Tasks {currentMod.module_id === 'A' ? '1–20' : currentMod.module_id === 'B' ? '21–40' : currentMod.module_id === 'C' ? '41–60' : currentMod.module_id === 'D' ? '61–80' : '81–100'}
+                            </span>
+                          </div>
+
+                          {/* Task List (Grid/List of 20 tasks) */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto p-1">
+                            {currentMod.tasks.map((taskText, tIdx) => {
+                              const taskNum = (
+                                (currentMod.module_id === 'A' ? 0 : 
+                                 currentMod.module_id === 'B' ? 20 : 
+                                 currentMod.module_id === 'C' ? 40 : 
+                                 currentMod.module_id === 'D' ? 60 : 80) + tIdx + 1
+                              );
+                              const isAlreadyCertified = selectedAgent.acquired_skills.some(s => s.toLowerCase().includes(taskText.toLowerCase().slice(0, 30)));
+
+                              return (
+                                <button
+                                  key={tIdx}
+                                  onClick={() => {
+                                    setTopicInput(`Task #${taskNum}: ${taskText}`);
+                                    setTaskInput(`Execute Soup Zero deterministic verification for: ${taskText}`);
+                                    handleStartTraining(undefined, `Task #${taskNum}: ${taskText}`, `Soup Zero test benchmark for: ${taskText}`);
+                                  }}
+                                  className={`text-left p-2.5 rounded-lg border text-xs transition-all flex items-start gap-2 group hover:scale-[1.01] ${
+                                    isAlreadyCertified
+                                      ? 'bg-emerald-950/20 border-emerald-800/40 text-emerald-200'
+                                      : 'bg-slate-900/60 border-slate-800 hover:border-indigo-500/60 hover:bg-indigo-950/30 text-slate-300'
+                                  }`}
+                                >
+                                  <span className="font-mono text-[10px] text-indigo-400 bg-indigo-950/80 px-1.5 py-0.5 rounded border border-indigo-800 flex-shrink-0 mt-0.5">
+                                    #{taskNum}
+                                  </span>
+                                  <span className="leading-snug line-clamp-2 text-[11px] group-hover:text-white">
+                                    {taskText}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : loadingCurriculum ? (
+                  <div className="py-8 text-center text-slate-500 text-xs font-mono">
+                    Loading 10-day master curriculum...
+                  </div>
+                ) : (
+                  <div className="py-6 text-center text-slate-500 text-xs font-mono">
+                    No curriculum loaded for this agent. Use custom assignment below.
+                  </div>
+                )}
+              </div>
+
               {/* Assignment Form */}
               <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 space-y-3 shadow-md">
                 <span className="text-xs font-bold text-slate-200 flex items-center gap-2">
                   <Play className="w-3.5 h-3.5 text-emerald-400" />
-                  Assign New Training Topic & Task Challenge
+                  Custom Training Topic & Challenge Form
                 </span>
 
                 <form onSubmit={handleStartTraining} className="space-y-3">
                   <div>
                     <label className="text-[11px] font-mono text-slate-400 block mb-1">
-                      Training Topic (e.g. FastAPI Async WebSockets Optimization)
+                      Training Topic (e.g. Task #1: Automate Google Sheets row updates via Vlone)
                     </label>
                     <input
                       type="text"
@@ -443,7 +597,7 @@ export const AgentProfiles: React.FC = () => {
 
                   <div>
                     <label className="text-[11px] font-mono text-slate-400 block mb-1">
-                      Practical Task Challenge for Soup Zero Verification
+                      Practical Task Challenge for Soup Zero RLVR Verification
                     </label>
                     <input
                       type="text"
@@ -455,7 +609,7 @@ export const AgentProfiles: React.FC = () => {
                   </div>
 
                   {feedbackMsg && (
-                    <div className="p-2 rounded-lg bg-slate-900 border border-indigo-700/50 text-xs text-indigo-300 font-mono">
+                    <div className="p-2.5 rounded-lg bg-indigo-950/60 border border-indigo-700/50 text-xs text-indigo-300 font-mono">
                       {feedbackMsg}
                     </div>
                   )}
@@ -475,12 +629,12 @@ export const AgentProfiles: React.FC = () => {
                       {isSubmitting ? (
                         <>
                           <Activity className="w-3.5 h-3.5 animate-spin" />
-                          <span>Dispatching...</span>
+                          <span>Dispatching Multi-Source Pipeline...</span>
                         </>
                       ) : (
                         <>
                           <span>🚀</span>
-                          <span>Launch YouTube + Web + Soup Training</span>
+                          <span>Launch Web + YouTube + Soup Training</span>
                         </>
                       )}
                     </button>
@@ -498,3 +652,5 @@ export const AgentProfiles: React.FC = () => {
     </div>
   );
 };
+
+export default AgentProfiles;

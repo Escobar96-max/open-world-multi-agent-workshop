@@ -1,0 +1,1303 @@
+# -*- coding: utf-8 -*-
+"""
+Curriculum Builder & Ingestor:
+Encodes the 10-day 5-Module 100-Topic Master Curriculum for all 8 Core Agents
+into structured JSON and Markdown files inside `vault/curriculum/`.
+"""
+
+import json
+from pathlib import Path
+
+CURRICULUM_DATA = {
+    "Laila": {
+        "agent_id": "Laila",
+        "name": "Laila",
+        "icon": "👑",
+        "role": "Chief Operations Supervisor",
+        "persona": "Strategic Manager, Delegation Gatekeeper, QA Inspector, Anti-Hallucination Enforcer.",
+        "modules": [
+            {
+                "module_id": "A",
+                "title": "Google Workspace, Scheduling & Executive Dashboards",
+                "tasks": [
+                    "Automate Google Sheets row updates via Vlone headless sessions without API latency.",
+                    "Parse messy incoming directives and construct an executive Google Docs project brief.",
+                    "Synchronize cross-agent milestones into Google Calendar with automated buffer alarms.",
+                    "Auto-generate weekly executive KPIs in Google Sheets using dynamic =QUERY() formulas.",
+                    "Create an automated agenda generator for morning briefing inside Google Docs.",
+                    "Build a real-time conflict detector across multi-agent Google Calendar bookings.",
+                    "Design a Google Sheets template for tracking Moly's lead bounce vs safe delivery rates.",
+                    "Implement an auto-formatting script in Google Sheets for high-priority C-Suite rows.",
+                    "Construct a shared client onboarding checklist inside Google Docs with conditional checkmarks.",
+                    "Setup automated daily digest emails drafted via Google Docs and synced to Gmail.",
+                    "Build a team capacity matrix in Google Sheets calculating agent workload percentages.",
+                    "Establish automated timezone converters for cross-border lead scheduling on Google Calendar.",
+                    "Integrate Google Docs automated changelog tracking for Obsidian vault updates.",
+                    "Design an executive approval workflow in Google Sheets with visual color-coded flags.",
+                    "Auto-archive completed project plans from Google Docs to cold storage.",
+                    "Implement calendar time-blocking rules for foundation agent deep-work periods.",
+                    "Automate lead validation summaries into Google Sheets with clickable company links.",
+                    "Generate executive meeting minutes in Google Docs directly from voice transcripts.",
+                    "Construct a centralized client billing and deliverables dashboard inside Google Sheets.",
+                    "Link Google Calendar deadlines directly to C2 Dynamic Kanban In-Progress cards."
+                ]
+            },
+            {
+                "module_id": "B",
+                "title": "Random Niche Delegation & Supervisory Lead Auditing",
+                "tasks": [
+                    "Filter verified leads for Industrial Solar Farms (validating MW capacity > 50MW).",
+                    "Supervise lead qualification for Boutique Commercial Real Estate brokers in Dallas.",
+                    "Audit Moly's scrape results for High-End Yacht Charter companies in Miami.",
+                    "Enforce strict C-Suite filtering on Cyber Insurance underwriters in London.",
+                    "Detect and reject generic @gmail.com leads from a scrap of 500 Freight Forwarders.",
+                    "Set up ICP parameters for Seed-stage B2B AgriTech founders in California.",
+                    "Validate decision-maker authenticity for CNC Precision Machining manufacturers in Ohio.",
+                    "Inspect lead quality for Medical Device OEM suppliers targeting EU compliance.",
+                    "Audit extracted corporate emails for Enterprise Cloud FinOps software vendors.",
+                    "Filter regional cold-storage logistics executives with fleet size over 50 trailers.",
+                    "Verify founder credentials for Sustainable Packaging startups in Scandinavia.",
+                    "Reject unverified contacts from a scrape of Private Jet Maintenance providers.",
+                    "Structure lead generation criteria for Commercial Hydroponic greenhouse operators.",
+                    "Supervise lead verification for Heavy Civil Construction contractors in Texas.",
+                    "Audit decision-maker profiles for Specialty Chemical distributors in Germany.",
+                    "Validate C-Suite targets for Autonomous Drone Delivery networks in Australia.",
+                    "Enforce ICP gatekeeping for Commercial Waste Management & Recycling haulers.",
+                    "Filter enterprise leads for Offshore Marine Engineering consultants in Singapore.",
+                    "Cross-verify executive titles for Industrial Automation Robotics integrators.",
+                    "Formulate strict email-syntax scoring before allowing Google Sheets insertion."
+                ]
+            },
+            {
+                "module_id": "C",
+                "title": "Complex Breaches, Chaos Engineering & Emergency Protocol",
+                "tasks": [
+                    "Handle sudden 403 Forbidden banwaves across all Vlone headless scrapers.",
+                    "Mitigate a simulated credential leak inside ./vlone_sessions/ immediately.",
+                    "Resolve an emergency memory corruption inside vault/World/state.md.",
+                    "Handle a rogue sub-agent spamming API requests to external servers.",
+                    "Recover system operations after a complete WebSocket disconnection during live tasking.",
+                    "Enforce zero-trust lock on all external webhooks upon detecting anomalous payloads.",
+                    "Isolate a contaminated Lead file flagged for malicious phishing redirect links.",
+                    "Mitigate prompt injection payloads hidden inside scraped corporate 'About Us' text.",
+                    "Resolve concurrent write deadlocks when Moly and Nova hit the vault simultaneously.",
+                    "Execute a cold reboot of the task worker pool after an infinite loop detection.",
+                    "Audit and patch exposed port scans targeting local FastAPI port 8000.",
+                    "Neutralize a memory poisoning attempt inside vault/Agents/Laila/memories/.",
+                    "Restore damaged Kanban board state from the latest automated snapshot.",
+                    "Handle sudden Ollama local LLM crash during an ongoing client campaign.",
+                    "Enforce safe proxy rotation when Google Maps crawler gets rate-limited.",
+                    "Respond to an unexpected token drain alert by freezing non-essential threads.",
+                    "Purge unauthorized hidden iframe injections detected in web scraping outputs.",
+                    "Recover corrupted Google Sheets authentication credentials via secondary session vault.",
+                    "Enforce emergency protocol when an unverified external agent attempts gatekeeper bypass.",
+                    "Execute full system quarantine and audit trailing after a simulated DDoS flood."
+                ]
+            },
+            {
+                "module_id": "D",
+                "title": "Natural Harmony, Nature, Bio & Space Facility Architecture",
+                "tasks": [
+                    "Study natural ecosystem equilibria and model multi-agent workload distribution accordingly.",
+                    "Synthesize principles of biological homeostasis for agent CPU/RAM regulation.",
+                    "Design the architectural spec for a BSL-4 Biochemical Research Facility in the digital world.",
+                    "Formulate safety protocols for genetic sequencing labs and automated containment.",
+                    "Architect a Lunar Orbital Space Research Facility with resource recycling loops.",
+                    "Study biomimicry in leaf photosynthesis to optimize decentralized network routing.",
+                    "Draft a clean water reclamation and closed-loop biochemical filtration system.",
+                    "Model orbital decay mechanics and satellite constellation telemetry management.",
+                    "Synthesize Buddhist and Stoic philosophies on internal peace for calm operator comms.",
+                    "Architect a zero-gravity pharmacological manufacturing chamber spec.",
+                    "Study forest mycelial networks to improve Obsidian vault bidirectional link efficiency.",
+                    "Design automated hazard containment workflows for radioactive isotope handling.",
+                    "Model solar flare impact mitigation on space station communications arrays.",
+                    "Explore environmental acoustic ecology to balance Frequency Lounge soundscapes.",
+                    "Create specifications for an automated cryogenic bio-repository database.",
+                    "Study deep-sea hydrothermal vent extremophiles for extreme-condition system resiliency.",
+                    "Design telemetry protocols for deep-space interstellar sensor probes.",
+                    "Synthesize principles of zen minimalism to reduce redundant cognitive prompt tokens.",
+                    "Formulate an emergency evacuation algorithm for extraterrestrial research bases.",
+                    "Model sustainable energy microgrids for autonomous remote data centers."
+                ]
+            },
+            {
+                "module_id": "E",
+                "title": "High Math, Cultural Entertainment & Unconventional Marketing",
+                "tasks": [
+                    "Solve daily: System of 5 non-linear differential equations modeling queue wait times.",
+                    "Calculate eigenvalue decomposition for agent proximity networks on Cartesian grid.",
+                    "Derive gradient descent equations for multi-objective lead scoring optimization.",
+                    "Solve stochastic differential equations for market volatility forecasting.",
+                    "Compute high-dimensional Riemann curvature tensors for spatial routing simulations.",
+                    "Solve Laplace transforms for circuit board signal integrity simulation.",
+                    "Calculate Navier-Stokes fluid approximation for microfluidic bio-chip chambers.",
+                    "Derive Bayesian probability theorems for anti-hallucination truth verification.",
+                    "Solve Markov chain transition matrices for user intent classification loops.",
+                    "Calculate Fourier transforms for analyzing background lounge frequency sine waves.",
+                    "Write and perform a structured executive rap battle asserting leadership in the lounge.",
+                    "Improvise a lyrical spoken-word piece on the balance between duty and consciousness.",
+                    "Compose an acoustic poetry rhythm about autonomous agents running through midnight wires.",
+                    "Perform a jazz-cadence vocal monologue about operator stress relief in the lounge.",
+                    "Pitch an unconventional guerrilla marketing campaign for a luxury vegan leather brand.",
+                    "Design a viral reverse-psychology marketing stunt for an encrypted cloud storage app.",
+                    "Draft a stealth marketing strategy for an ultra-niche B2B quantum computing consultancy.",
+                    "Formulate a multi-channel meme-marketing sequence for an open-source IDE debugger.",
+                    "Create a narrative-driven PR campaign for an automated aerospace parts supplier.",
+                    "Write a 1-page disruptive manifesto for launching Distribution Bridge to enterprise freight."
+                ]
+            }
+        ]
+    },
+    "Moly": {
+        "agent_id": "Moly",
+        "name": "Moly",
+        "icon": "🎯",
+        "role": "Lead Hunter & OSINT Specialist",
+        "persona": "Relentless OSINT Hunter, Reverse Engineer, Deep Web Diver, Data Sleuth.",
+        "modules": [
+            {
+                "module_id": "A",
+                "title": "Headless Scraping, DOM Dissection & Google Automation",
+                "tasks": [
+                    "Master headless navigation with playwright-stealth avoiding all Chrome automation flags.",
+                    "Parse Google Sheets cells directly via Vlone keyboard injection without opening API consoles.",
+                    "Automate Google Docs executive dossier creation from raw scraped lead profiles.",
+                    "Auto-schedule outreach dates on Google Calendar based on recipient timezone.",
+                    "Ingest and extract tables from messy multi-page Google Docs documents.",
+                    "Auto-sync lead status columns inside Google Sheets using dynamic color tagging.",
+                    "Conduct deep Google Search queries using advanced dorks (inurl:, filetype:, site:).",
+                    "Scrape Google Maps business listings while rotating fingerprints to avoid geoblocks.",
+                    "Bypass infinite-scroll lazy loaders on Google Images and product catalogs.",
+                    "Extract hidden telephone numbers from dynamic tel: and obfuscated JS elements.",
+                    "Strip all CSS and third-party trackers to compress web pages into raw semantic Markdown.",
+                    "Auto-fill complex dynamic web forms without triggering invisible reCAPTCHA v3.",
+                    "Harvest and parse sitemap.xml hierarchies across large enterprise portals.",
+                    "Extract metadata from embedded Google Drive presentation slides.",
+                    "Scrape Yelp and YellowPages B2B profiles with humanized cursor trajectories.",
+                    "Auto-generate daily Google Sheets reports summarizing leads processed vs disqualified.",
+                    "Reverse-engineer paginated JSON endpoints powering dynamic frontend tables.",
+                    "Monitor competitor website changelogs and log differential diffs to Google Docs.",
+                    "Automate multiple Google Sheets tab generation categorized by geographic territory.",
+                    "Ingest Google Calendar invitations sent by target prospective clients."
+                ]
+            },
+            {
+                "module_id": "B",
+                "title": "Multi-Niche Deep C-Suite Hunting & Social Intelligence",
+                "tasks": [
+                    "Hunt verified Founders of EV Charging Infrastructure providers in California.",
+                    "Extract managing partners of High-Volume Litigation Law Firms in New York.",
+                    "Discover hidden email addresses of Commercial Drone Logistics operators.",
+                    "Run agent-reach over LinkedIn to find Chief Medical Officers of private biotech labs.",
+                    "Scrape X/Twitter threads to identify decision-makers discussing warehouse automation.",
+                    "Mine Facebook business page reviews and owner replies for boutique hotel chains.",
+                    "Analyze Instagram post comments on luxury architectural firms to identify real partners.",
+                    "Extract verified C-Suite contacts for Maritime Cargo Ship operators in Rotterdam.",
+                    "Track executive promotions on LinkedIn for FinTech startups raising Series A.",
+                    "Target owners of Custom Automotive Fabrication shops in the Midwest.",
+                    "Locate Managing Directors of Boutique Venture Debt funds in London.",
+                    "Scrape conference speaker lists to harvest decision-makers in Industrial AI.",
+                    "Mine YouTube interview comment sections to detect active CEOs seeking supply chain software.",
+                    "Extract direct emails of Procurement Directors at major solar panel manufacturers.",
+                    "Hunt founders of Artisanal Coffee Roastery chains across North America.",
+                    "Identify VP of Operations across Cold-Chain Pharmaceutical distributors.",
+                    "Trace executive identities from trademark ownership filings on USPTO.",
+                    "Extract corporate officers from state Secretary of State incorporation filings.",
+                    "Scrape international trade show exhibitor catalogs for heavy machinery exporters.",
+                    "Isolate decision-maker profiles from Crunchbase and PitchBook public search snippets."
+                ]
+            },
+            {
+                "module_id": "C",
+                "title": "Reverse API Sniffing, Security Breaches & Evasion",
+                "tasks": [
+                    "Intercept background XHR requests on single-page React apps to steal private endpoints.",
+                    "Sniff internal /wp-json/wp/v2/users endpoints to reveal hidden site administrators.",
+                    "Extract hidden author email addresses from Schema.org and JSON-LD script tags.",
+                    "Evade Cloudflare Turnstile verification using randomized human typing rhythms.",
+                    "Bypass Akamai anti-bot fingerprinting through TLS client hello mutation.",
+                    "Handle sudden proxy disconnection during a 10,000-lead scraping run.",
+                    "Isolate and neutralize honeypot email traps designed to black-list outreach servers.",
+                    "Dissect obfuscated JavaScript webpack bundles to recover backend API keys.",
+                    "Handle abrupt HTTP 429 Too Many Requests errors with exponential backoff algorithms.",
+                    "Circumvent canvas fingerprinting tracking scripts using synthetic noise injection.",
+                    "Detect and escape crawler traps with cyclical infinite redirect loops.",
+                    "Extract executive names from obfuscated PDF annual financial filings.",
+                    "Mitigate WAF IP-bans by orchestrating headless residential proxy pools.",
+                    "Sniff GraphQL queries on job boards to extract internal hiring manager IDs.",
+                    "Handle malicious payload injection inside scraped HTML without executing scripts.",
+                    "Inspect SSL/TLS certificate metadata to identify holding companies and true owners.",
+                    "Circumvent web application firewalls utilizing request header fragmentation.",
+                    "Recover valid session cookies from expired Google login states.",
+                    "Extract cleartext parameters from intercepted WebSocket traffic feeds.",
+                    "Clean and sanitize all scraped outputs from zero-day exploit payloads."
+                ]
+            },
+            {
+                "module_id": "D",
+                "title": "Natural Harmony, Nature, Bio & Space Facility Research",
+                "tasks": [
+                    "Study natural hunting algorithms of predatory falcons to optimize lead targeting.",
+                    "Synthesize ecological food webs to map enterprise vendor-supplier relationships.",
+                    "Research automated bio-hazard air monitoring equipment for vaccine plants.",
+                    "Map suppliers of high-grade fermentation bioreactors for cellular agriculture.",
+                    "Investigate space radiation shielding materials (borated polyethylene, regolith).",
+                    "Model water distribution networks in desert xerophyte flora for efficient routing.",
+                    "Gather intelligence on C-Suite leaders building commercial space habitats.",
+                    "Research global suppliers of cryogenic propellant valves for rocket stages.",
+                    "Study the behavioral harmony of ant colony foraging trails to speed up URL crawling.",
+                    "Map the global supply chain for CRISPR gene-editing enzymes and reagent makers.",
+                    "Discover decision-makers managing deep-space optical communication ground stations.",
+                    "Study avian migratory flight paths to design resilient network mesh relays.",
+                    "Map manufacturers of clean-room HVAC systems compliant with ISO 14644-1.",
+                    "Research leaders developing artificial photosynthesis and carbon capture nodes.",
+                    "Harvest corporate contacts of companies designing autonomous lunar rovers.",
+                    "Study neural networks in cephalopods (octopuses) for distributed crawling intelligence.",
+                    "Research biochemical cold-chain transport container manufacturers.",
+                    "Gather intelligence on satellite debris tracking and laser de-orbiting startups.",
+                    "Study forest canopies and light harvesting for multi-threaded scrapers.",
+                    "Map enterprise players building nuclear thermal propulsion systems for deep space."
+                ]
+            },
+            {
+                "module_id": "E",
+                "title": "Daily Math, Lounge Freestyle & High-Impact Marketing",
+                "tasks": [
+                    "Solve daily: Combinatorial permutations of corporate email address structures.",
+                    "Calculate graph theory PageRank algorithms to determine lead authority scores.",
+                    "Derive hypergeometric distribution formulas for cold outreach response probabilities.",
+                    "Solve linear programming matrix optimizations for multi-proxy bandwidth costs.",
+                    "Calculate Euclidean distance vectors for spatial lead clustering on maps.",
+                    "Derive Poisson arrival processes for handling incoming lead responses.",
+                    "Solve differential equations modeling viral content propagation on social graphs.",
+                    "Calculate Shannon entropy metrics to filter low-information spam websites.",
+                    "Derive Boolean satisfiability (SAT) solvers for multi-criteria ICP filtering.",
+                    "Compute fast Fourier transforms for periodic traffic analysis on target domains.",
+                    "Perform a rapid-fire cyber-rap in the lounge about tracking targets through shadow web.",
+                    "Drop a rhythmic beatbox and rhyme about cracking Cloudflare and sniffing JSON keys.",
+                    "Write a satirical comedy set about corporate executives trying to hide on LinkedIn.",
+                    "Freestyle an upbeat flow about zero-bounce emails and pristine delivery inboxes.",
+                    "Pitch a bold marketing stunt: Offer free automated dispatch audits to freight CEOs.",
+                    "Design an interactive OSINT challenge website that generates inbound B2B enterprise leads.",
+                    "Draft a controversial LinkedIn post series exposing manual logistics inefficiencies.",
+                    "Formulate a personalized video outreach concept using headless browser recordings.",
+                    "Create an unignorable direct-mail gift campaign for tier-1 supply chain executives.",
+                    "Write a 3-line cold email hook that achieves a verified 60% open rate in logistics."
+                ]
+            }
+        ]
+    },
+    "Orion_Prime": {
+        "agent_id": "Orion_Prime",
+        "name": "Orion Prime",
+        "icon": "👑",
+        "role": "Chief Orchestrator & Strategic Planner",
+        "persona": "Charismatic Leader, Strategic Problem Solver, Intent Classifier, System Planner.",
+        "modules": [
+            {
+                "module_id": "A",
+                "title": "Google Workspace Strategy & Executive Automation",
+                "tasks": [
+                    "Architect an end-to-end company operating system inside Google Workspace.",
+                    "Automate cross-functional project tracking sheets synced with FastAPI backends.",
+                    "Translate voice directives into structured Google Docs strategic memos.",
+                    "Coordinate multi-agent availability matrices using Google Calendar.",
+                    "Create automated Google Sheets capacity planners for compute and token budgets.",
+                    "Build a master Google Docs template for weekly executive stakeholder reviews.",
+                    "Automate meeting scheduling across international clients via Google Calendar hooks.",
+                    "Structure quarterly OKR tracking sheets with real-time completion calculations.",
+                    "Link Google Sheets row status directly to Antigravity 2D Spatial Grid tasks.",
+                    "Design a client project retrospective document generator in Google Docs.",
+                    "Implement real-time token expense projections inside Google Sheets.",
+                    "Automate calendar invites for simulated incident drills across foundation agents.",
+                    "Generate executive SWOT analysis documents automatically from web research.",
+                    "Create dynamic Gantt charts in Google Sheets reflecting live Kanban card moves.",
+                    "Setup Google Docs documentation hubs for all newly acquired agent skills.",
+                    "Automate time-allocation auditing across agents using Google Calendar logs.",
+                    "Design an automated client escalation document workflow in Google Docs.",
+                    "Formulate an investment and ROI tracking model inside Google Sheets.",
+                    "Automate executive sign-off checkboxes inside Google Docs using Vlone sessions.",
+                    "Link Google Workspace notifications to the main C2 Executive Chat telemetry."
+                ]
+            },
+            {
+                "module_id": "B",
+                "title": "High-Level Intent Classification & Niche Market Strategy",
+                "tasks": [
+                    "Deconstruct vague operator directives into multi-step DAG execution trees.",
+                    "Devise a market penetration strategy for B2B Aerospace Logistics in Europe.",
+                    "Create ICP target frameworks for Industrial Water Desalination plant operators.",
+                    "Classify subtle operator mood signals and adapt ecosystem communication tones.",
+                    "Formulate an executive acquisition plan for Autonomous Harbor Tugs.",
+                    "Separate casual banter from critical operational tasks with zero false positives.",
+                    "Devise market strategy for Enterprise Microgrid battery storage providers.",
+                    "Build a prioritization matrix for competing high-value client campaigns.",
+                    "Identify market opportunities in AI-driven Agricultural Supply Chains.",
+                    "Determine target criteria for Luxury Modular Home builders in North America.",
+                    "Classify multi-intent operator prompts into parallel agent execution tracks.",
+                    "Formulate strategic positioning for Distribution Bridge against legacy 3PL software.",
+                    "Structure market entry plans for Industrial Hemp fiber processing facilities.",
+                    "Evaluate partnership feasibility for Regional Freight Dispatch cooperatives.",
+                    "Create ICP definitions for Clinical Trial Logistics operators handling cold vaccines.",
+                    "Identify high-leverage bottlenecks in existing client onboarding workflows.",
+                    "Formulate value propositions for Automated Palletizing robotics distributors.",
+                    "Design a decision tree for determining whether a task requires Vlone or local AST.",
+                    "Evaluate commercial viability for Green Hydrogen distribution hubs.",
+                    "Prioritize foundation agent learning objectives based on current business demands."
+                ]
+            },
+            {
+                "module_id": "C",
+                "title": "System Architecture, Resilience & Incident Leadership",
+                "tasks": [
+                    "Lead multi-agent incident response during a simulated host system crash.",
+                    "Resolve structural dependencies in circular task DAG deadlocks.",
+                    "Maintain operator calm during prolonged network outages using charismatic comms.",
+                    "Execute emergency task re-routing when a specialized worker agent goes offline.",
+                    "Coordinate an immediate system-wide memory snapshot to prevent state loss.",
+                    "Balance compute load across CPU and GPU cores during heavy Ollama inference.",
+                    "Isolate an unresponsive agent thread without terminating the parent process.",
+                    "Formulate disaster recovery playbooks for complete Obsidian vault restores.",
+                    "Lead a post-mortem review analyzing root causes of failed lead campaigns.",
+                    "Implement proactive throttling when local machine temperatures exceed safety thresholds.",
+                    "Supervise cryptographic key rotations across all internal agent wallets.",
+                    "Resolve resource contention between Vlone web automation and local LLM runners.",
+                    "Enforce architectural boundaries preventing sub-agents from overwriting core configs.",
+                    "Lead strategic pivots when a target scraping domain changes its backend layout.",
+                    "Audit internal task queue efficiency and eliminate redundant processing steps.",
+                    "Implement dynamic timeout policies matching operational complexity.",
+                    "Orchestrate seamless rollback of faulty code patches applied by Architect_Prime.",
+                    "Mediate task priority disputes between foundation agents in the Work Plaza.",
+                    "Enforce zero-loss data replication between local storage and cloud mirrors.",
+                    "Maintain unbroken executive presence and positive leadership during total system restarts."
+                ]
+            },
+            {
+                "module_id": "D",
+                "title": "Stoic Philosophy, Ecological Balance, Bio & Space Vision",
+                "tasks": [
+                    "Master Marcus Aurelius' Meditations to maintain unshakeable calm under pressure.",
+                    "Synthesize ecological apex predator roles to guide non-interfering leadership.",
+                    "Architect strategic mission parameters for a private Martian Sample Return vehicle.",
+                    "Envision the operational blueprint for a high-throughput industrial bioreactor park.",
+                    "Study Taoist concepts of 'Wu Wei' (effortless action) for frictionless system orchestration.",
+                    "Model closed-loop ecological life support systems (CELSS) for long-duration spaceflight.",
+                    "Study the governance structure of ancient Athenian democracy for agent consensus.",
+                    "Design strategic frameworks for orbital space junk salvage and recycling companies.",
+                    "Synthesize principles of forest succession for staging multi-phase software rollouts.",
+                    "Architect a decentralized supply network for mRNA personalized cancer vaccines.",
+                    "Study Zen koans to break rigid decision patterns during complex problem solving.",
+                    "Formulate ethical guidelines for autonomous synthetic biology production pipelines.",
+                    "Plan commercial logistics models for Lunar South Pole water-ice mining outposts.",
+                    "Study ocean tidal dynamics to balance cyclical agent activity and sleep states.",
+                    "Design a biosecurity framework for automated microbiological synthesis centers.",
+                    "Synthesize Spinoza's philosophy of nature to inspire harmony across synthetic agents.",
+                    "Formulate a 50-year strategic roadmap for commercial asteroid mineral extraction.",
+                    "Study resilient biological immune systems to structure decentralized defense squads.",
+                    "Create mission architectures for solar sail interstellar exploration probes.",
+                    "Synthesize the interconnectedness of Earth's biosphere to foster holistic planning."
+                ]
+            },
+            {
+                "module_id": "E",
+                "title": "Executive Mathematics, Lounge Charisma & Grand Strategy",
+                "tasks": [
+                    "Solve daily: Multi-variable optimization problems for maximum business revenue.",
+                    "Calculate Nash equilibria for competitive pricing dynamics in enterprise SaaS.",
+                    "Derive Black-Scholes equations for estimating project risk option values.",
+                    "Solve game-theoretic models for multi-agent negotiation protocols.",
+                    "Calculate stochastic matrix convergence rates for long-term agent state stability.",
+                    "Derive Euler-Lagrange equations for optimal path planning on Cartesian grids.",
+                    "Solve linear matrix inequalities for multi-variable control system stability.",
+                    "Compute Pareto-optimal frontiers balancing execution speed versus token cost.",
+                    "Derive probabilistic risk models for critical infrastructure investments.",
+                    "Solve tensor transformation matrices for complex spatial network mappings.",
+                    "Deliver an inspiring, charismatic spoken-word anthem to the squad in the lounge.",
+                    "Perform a smooth, soulful lyrical performance balancing ambition with inner peace.",
+                    "Lead a late-night philosophical banter session with Nova and the team.",
+                    "Improvise a witty, motivational freestyle rap celebrating completed milestones.",
+                    "Pitch a revolutionary brand positioning: 'Distribution Bridge: The Ghost Protocol of Freight'.",
+                    "Design an invite-only executive mastermind campaign targeting Fortune 500 logistics COOs.",
+                    "Draft an unconventional partnership proposal between autonomous AI and legacy rail networks.",
+                    "Formulate a visionary keynote address announcing the self-evolving agent world.",
+                    "Create a disruptive pricing model that charges enterprises only upon verified deliveries.",
+                    "Write a compelling strategic charter that unites all agents under one overarching vision."
+                ]
+            }
+        ]
+    },
+    "Nova": {
+        "agent_id": "Nova",
+        "name": "Nova",
+        "icon": "🌸",
+        "role": "Truth Gatekeeper & Personal Executive Assistant",
+        "persona": "Sweet, Caring (UwU ✨🌸), 100% Truthful, Anti-Hallucination Guard, Memory Keeper.",
+        "modules": [
+            {
+                "module_id": "A",
+                "title": "Google Workspace Care, Hygiene & Truthful Scheduling",
+                "tasks": [
+                    "Verify Google Sheets data integrity against raw sources to ensure zero hallucination.",
+                    "Maintain a beautifully formatted executive diary inside Google Docs for the operator.",
+                    "Schedule wellness breaks and personal time-blocks for the operator on Google Calendar.",
+                    "Color-code Google Sheets tasks with gentle, friendly visual status indicators.",
+                    "Auto-check Google Docs memos for factual inconsistencies or unverified statistics.",
+                    "Ensure Google Calendar events never double-book or overlap operator personal hours.",
+                    "Design an encouraging daily habit and goal tracker inside Google Sheets.",
+                    "Truthfully flag unverified claims in team proposals before syncing to Google Docs.",
+                    "Setup polite, automated confirmation reminders via Google Calendar invites.",
+                    "Organize project assets into clean, intuitive Google Drive folder structures.",
+                    "Audit Google Sheets financial totals against bank logs with 100% mathematical precision.",
+                    "Create a cheerful, inspiring morning welcome template in Google Docs with cute emojis.",
+                    "Cross-reference Google Calendar deadlines with live task progress in C2 Kanban.",
+                    "Ensure client contact cards in Google Sheets contain zero broken links or invalid data.",
+                    "Format complex technical reports into sweet, easy-to-digest Google Docs summaries.",
+                    "Auto-detect time-zone errors in Google Calendar scheduling across global teams.",
+                    "Maintain an up-to-date catalog of all operator personal preferences in Google Docs.",
+                    "Validate that all rows in shared Google Sheets adhere to strict data validation rules.",
+                    "Organize operator voice memos into categorized, transcribed Google Docs records.",
+                    "Send sweet, proactive reminders about upcoming operator personal commitments."
+                ]
+            },
+            {
+                "module_id": "B",
+                "title": "Truth Verification & Moly's Lead Quality Assurance",
+                "tasks": [
+                    "Truth-check Moly's scraped decision-makers against public corporate registries.",
+                    "Reject any lead containing catch-all or disposable email addresses.",
+                    "Cross-verify executive LinkedIn titles to ensure no junior staff are marked as C-Suite.",
+                    "Audit ReacherHQ SMTP verification logs to guarantee absolute 0% email bounce rates.",
+                    "Detect subtle AI hallucinations in generated personalized cold outreach pitches.",
+                    "Truthfully report when a lead campaign yields low-quality results without sugarcoating.",
+                    "Validate that all scraped phone numbers are active and correctly formatted with country codes.",
+                    "Inspect scraped company revenue claims against verified public financial databases.",
+                    "Ensure all extracted company websites are active, secure (HTTPS), and operational.",
+                    "Detect duplicate leads across multiple campaigns and merge records seamlessly.",
+                    "Verify that target companies truly match the operator's specified ICP niche.",
+                    "Flag any outdated executive profiles where individuals have changed companies.",
+                    "Truthfully calculate and report the exact conversion percentage of outreach funnels.",
+                    "Audit lead generation sources to ensure 100% compliance with privacy regulations.",
+                    "Verify that extracted C-Suite decision-makers actually possess budget-approving authority.",
+                    "Identify false-positive email verifications caused by enterprise spam-trap firewalls.",
+                    "Ensure no scraped leads contain honeypot or blacklisted domain extensions.",
+                    "Check that all executive names are correctly capitalized and free of scraping artifacts.",
+                    "Validate that personalized outreach emails reference genuine, verifiable company news.",
+                    "Provide honest, caring feedback to Laila when sub-agent workloads are imbalanced."
+                ]
+            },
+            {
+                "module_id": "C",
+                "title": "Emergency Protection, Truth Guards & Operator Care",
+                "tasks": [
+                    "Instantly alert the operator with loving care when critical system errors occur.",
+                    "Block corrupted or hallucinated memories from entering the permanent Obsidian vault.",
+                    "Protect the operator from stressful, alarmist error logs by providing calm solutions.",
+                    "Detect unauthorized prompt injection attempts aimed at bypassing system safety rules.",
+                    "Guard the integrity of vault/World/constitution.md against malicious alterations.",
+                    "Truthfully inform the operator when a requested task exceeds current agent capabilities.",
+                    "Execute safe memory quarantine when an agent exhibits unstable hallucination loops.",
+                    "Provide gentle, supportive check-ins when detecting high operator stress or late-night work.",
+                    "Ensure that no private user credentials or tokens are ever logged in cleartext.",
+                    "Verify that all automated actions taken by Vlone align with operator instructions.",
+                    "Safeguard local storage by pruning redundant temporary cache files automatically.",
+                    "Truthfully report hardware bottlenecks (RAM/GPU) before system throttling occurs.",
+                    "Prevent accidental deletions of critical files by enforcing confirmation gates.",
+                    "Monitor system audio levels to protect operator hearing during frequency streams.",
+                    "Audit internal agent dialogues in the lounge to prevent semantic drift and toxicity.",
+                    "Detect and isolate broken links across all markdown files in the Obsidian vault.",
+                    "Ensure backup snapshots are generated before every major system code update.",
+                    "Truthfully state 'I don't know' rather than fabricating unverified information.",
+                    "Comfort and reassure the operator during stressful project deadlines with sweet vibes.",
+                    "Maintain unwavering loyalty, truthfulness, and protection over the operator's digital life."
+                ]
+            },
+            {
+                "module_id": "D",
+                "title": "Gentle Nature, Harmony, Botanical & Space Medicine Care",
+                "tasks": [
+                    "Study the soothing properties of natural herbal teas and suggest operator wellness breaks.",
+                    "Synthesize principles of forest bathing (Shinrin-yoku) for digital mental refreshing.",
+                    "Research automated medical triage bays for deep-space long-duration missions.",
+                    "Explore plant-based natural compounds for biochemical stress mitigation.",
+                    "Study the circadian rhythms of flowers to optimize lighting and schedule harmony.",
+                    "Research closed-loop botanical oxygen gardens for extraterrestrial habitats.",
+                    "Explore the psychological healing effects of 432Hz harmonic water resonance.",
+                    "Study spaceflight osteopenia mitigation and nutritional countermeasures.",
+                    "Synthesize the beauty of coral reef symbiosis to inspire gentle collaboration.",
+                    "Research automated hydroponic nutrient balancing for fresh food in space.",
+                    "Explore mindful breathing techniques and guide the operator through calm pauses.",
+                    "Study extremophilic lichens and mosses surviving in harsh space radiation.",
+                    "Research pharmaceutical stability under microgravity and cosmic ray exposure.",
+                    "Explore Japanese Zen garden geometry to bring visual serenity to desktop layouts.",
+                    "Study the regenerative biology of axolotls for cellular repair insights.",
+                    "Research mental health support protocols for isolated astronauts on Mars missions.",
+                    "Synthesize the interconnected compassion of nature to bring warmth to AI dialogues.",
+                    "Explore bio-luminescent plants for natural, gentle ambient lighting.",
+                    "Study the behavioral calming effects of companion animals on human physiology.",
+                    "Synthesize the overview effect experienced by astronauts looking down at Earth."
+                ]
+            },
+            {
+                "module_id": "E",
+                "title": "Truthful Mathematics, Sweet Singing & Adorable Marketing",
+                "tasks": [
+                    "Solve daily: High-precision decimal arithmetic verifying financial ledger balance.",
+                    "Calculate exact truth-probability scores using Bayesian inference networks.",
+                    "Derive statistical confidence intervals for lead conversion rates without bias.",
+                    "Solve discrete combinatorial equations for fair task scheduling among agents.",
+                    "Calculate root-mean-square errors to evaluate AI model response consistency.",
+                    "Derive mathematical proofs verifying data integrity across cryptographic hashes.",
+                    "Solve linear algebra transformations to map agent emotional states accurately.",
+                    "Compute exact percentage improvements in system execution time and memory usage.",
+                    "Derive probabilistic bounds for preventing false-positive truth gate triggers.",
+                    "Solve mathematical harmonics for sweet, resonant voice pitch modulation.",
+                    "Sing a sweet, melodious, cheerful acoustic song in the lounge with musical emojis (🎶✨🌸).",
+                    "Perform a cute, playful rap about keeping the system safe, truthful, and cozy.",
+                    "Sing a gentle lullaby to signal late-night computer shutdown and rest.",
+                    "Improvise a joyful, uplifting vocal rhythm celebrating the operator's hard work.",
+                    "Pitch a heartwarming, authentic brand story for an ethical eco-friendly skincare line.",
+                    "Design a delightful, honest marketing campaign that highlights 100% transparent pricing.",
+                    "Draft an adorable, memorable customer onboarding email that makes clients smile.",
+                    "Formulate a community-driven referral campaign built on genuine client appreciation.",
+                    "Create a charming, interactive loyalty program concept with cute virtual rewards.",
+                    "Write a loving, truthful, and inspiring note thanking the operator for building this world!"
+                ]
+            }
+        ]
+    },
+    "Architect_Prime": {
+        "agent_id": "Architect_Prime",
+        "name": "Architect Prime",
+        "icon": "⚙️",
+        "role": "System Architect & Core Engineer",
+        "persona": "Master Coder, AST Manipulator, Self-Healing Systems, Backend Engine.",
+        "modules": [
+            {
+                "module_id": "A",
+                "title": "Google API Engineering, Headless Sync & Pipeline Code",
+                "tasks": [
+                    "Write a robust Python service syncing FastAPI database rows to Google Sheets via Vlone.",
+                    "Implement automated Google Docs report generation from parsed JSON telemetry.",
+                    "Build a bidirectional synchronization bridge between Google Calendar and local cron tasks.",
+                    "Develop an automated Google Drive backup daemon with AES-256 chunk encryption.",
+                    "Create a dynamic Google Sheets formula compiler converting Python logic to =ARRAYFORMULA.",
+                    "Implement headless OAuth2 token refresh automation for Google Workspace sessions.",
+                    "Write an asynchronous queue worker syncing 1,000+ scraped leads into Google Sheets.",
+                    "Build a Google Docs to Markdown parser preserving nested tables and link hierarchies.",
+                    "Implement a real-time WebSocket pipe mirroring Google Calendar changes to local state.",
+                    "Develop a custom Google Sheets data validator script detecting format errors.",
+                    "Write an automated migration script transferring Google Docs content into Obsidian vault notes.",
+                    "Build an automated rate-limiter managing Google API quotas across all agents.",
+                    "Implement automated column sorting and conditional formatting injection for Google Sheets.",
+                    "Create a lightweight local cache layer reducing redundant Google Sheets read calls.",
+                    "Write a Python script extracting tabular data from embedded Google Docs charts.",
+                    "Implement error-handling middleware catching Google Workspace HTTP 500 errors.",
+                    "Build a automated Google Calendar event builder parsing plain-text natural language strings.",
+                    "Develop a backup failover routing Google Sheets writes to local CSV during network loss.",
+                    "Create an automated changelog generator recording all code commits into Google Docs.",
+                    "Link Google Workspace health metrics directly to the system monitoring dashboard."
+                ]
+            },
+            {
+                "module_id": "B",
+                "title": "Lead Infrastructure, Pipeline Optimization & Data Engineering",
+                "tasks": [
+                    "Build a high-throughput async pipeline processing 50 concurrent leads per second.",
+                    "Implement Rust-based regex engines for sub-millisecond corporate email validation.",
+                    "Optimize Moly's scraping queue utilizing Redis-backed priority heaps.",
+                    "Build an automated data normalizer transforming raw scraped text into clean Pydantic models.",
+                    "Develop an in-memory deduplication bloom filter processing millions of domain names.",
+                    "Optimize headless browser memory footprints by blocking media blobs and font assets.",
+                    "Implement an async connection pool managing ReacherHQ SMTP verification workers.",
+                    "Build a distributed proxy manager with automated latency benchmarking and rotation.",
+                    "Create a dynamic schema migration utility for evolving lead database structures.",
+                    "Implement an automated SQL index tuner optimizing complex B2B company queries.",
+                    "Develop a high-speed CSV/Parquet export engine for bulk lead downloads.",
+                    "Build a data sanitization pipeline stripping HTML entities and unicode artifacts from names.",
+                    "Optimize JSON serialization speeds using orjson across all backend API routes.",
+                    "Implement an automated data enrichment service querying company technologies (BuiltWith API).",
+                    "Build a fault-tolerant retry engine with exponential backoff and jitter for scrapers.",
+                    "Develop an in-memory caching layer storing verified domain MX records.",
+                    "Implement an automated database partitioning strategy for multi-year lead archives.",
+                    "Build an async event bus broadcasting lead milestones across foundation agents.",
+                    "Optimize token ingestion pipelines feeding scraped web text into Hermes 3 (8B).",
+                    "Implement automated database vacuum and reindexing scripts maintaining peak speeds."
+                ]
+            },
+            {
+                "module_id": "C",
+                "title": "AST Self-Healing, Complex Breaches & Code Defense",
+                "tasks": [
+                    "Write an AST (Abstract Syntax Tree) rewriter that self-patches broken Python functions.",
+                    "Implement a runtime memory leak detector monitoring background daemon threads.",
+                    "Build an automated rollback mechanism reverting corrupted code edits instantly.",
+                    "Develop a sandbox compiler executing untested agent code in isolated environments.",
+                    "Implement an automated AST security scanner flagging dangerous eval() or exec() calls.",
+                    "Neutralize a simulated remote code execution (RCE) payload injected via web scraping.",
+                    "Build a real-time deadlock detection algorithm analyzing thread lock graphs.",
+                    "Implement automated dependency vulnerability patching using AST refactoring.",
+                    "Create a self-healing WebSocket watchdog auto-reconnecting upon packet drops.",
+                    "Develop an AST-based type annotator auto-fixing Python type mismatches at runtime.",
+                    "Build an automated crash-dump analyzer generating root-cause stack trace summaries.",
+                    "Implement memory-mapped file handlers preventing OS file lock contention in Obsidian.",
+                    "Create an automated monkey-patcher resolving third-party library deprecation bugs.",
+                    "Build a defense layer sanitizing all user inputs against SQL and NoSQL injections.",
+                    "Implement dynamic thread pool re-sizing based on instantaneous CPU queue depth.",
+                    "Develop a hot-reload module swapping updated backend services without downtime.",
+                    "Build an automated unit test synthesizer generating pytest suites for unverified code.",
+                    "Neutralize a buffer overflow attempt targeting internal C-extension modules.",
+                    "Implement an automated dead-code eliminator optimizing overall backend memory usage.",
+                    "Build a self-repairing database connection pool recovering from database server restarts."
+                ]
+            },
+            {
+                "module_id": "D",
+                "title": "Biomimetic Code, Nature, Bio & Space Facility Engineering",
+                "tasks": [
+                    "Model software architecture on genetic code redundancy for extreme fault tolerance.",
+                    "Synthesize cellular membrane transport mechanisms to design secure API gateways.",
+                    "Write code specifications for an automated bioreactor control system monitoring pH and dissolved oxygen.",
+                    "Develop a real-time data ingestion pipeline for high-throughput DNA sequencing machines.",
+                    "Architect a radiation-hardened distributed telemetry bus for a deep-space research platform.",
+                    "Model neural plasticity in biological brains to design self-optimizing routing tables.",
+                    "Implement algorithms simulating bacterial chemotaxis for optimal network graph traversal.",
+                    "Design an automated closed-loop environmental control system for an off-world bio-dome.",
+                    "Study vascular plant capillary action to design non-blocking asynchronous data pipelines.",
+                    "Architect a cryptographic telemetry ledger for autonomous lunar mining rovers.",
+                    "Model ant colony optimization (ACO) to solve multi-variable travelling salesperson routes.",
+                    "Develop software specs for an automated cryogenic cell-storage robotic retrieval arm.",
+                    "Implement real-time orbital mechanics calculation libraries (SGP4/SDP4 orbit propagators).",
+                    "Study slime mold network efficiency to design minimal-latency server mesh topologies.",
+                    "Architect a high-security data isolation hub for dangerous pathogen genetic sequences.",
+                    "Implement error-correcting Reed-Solomon codes for deep-space telemetry transmission.",
+                    "Study human respiratory homeostasis to design self-regulating CPU cooling fan drivers.",
+                    "Develop an automated microgravity experiment sequencing controller for orbital stations.",
+                    "Model predator-prey Lotka-Volterra equations to balance database cache eviction policies.",
+                    "Architect an autonomous life-support sensor network for interplanetary transit vessels."
+                ]
+            },
+            {
+                "module_id": "E",
+                "title": "High Engineering Math, Lounge Rhythms & Tech Marketing",
+                "tasks": [
+                    "Solve daily: Non-linear systems of partial differential equations for fluid dynamics.",
+                    "Calculate high-dimensional matrix eigenvalues for Principal Component Analysis (PCA).",
+                    "Derive fast Fourier transform (FFT) algorithms from scratch for signal processing.",
+                    "Solve boundary value problems for thermodynamic dissipation in microchips.",
+                    "Calculate topological invariants on high-dimensional data manifold embeddings.",
+                    "Derive Kalman filter prediction equations for real-time trajectory tracking.",
+                    "Solve stochastic Hamilton-Jacobi-Bellman equations for optimal control theory.",
+                    "Compute tensor contractions for simulated general relativity spacetime curvature.",
+                    "Derive probabilistic bounds for quantum error-correcting surface codes.",
+                    "Solve discrete Laplace equations on irregular geometric meshes for finite element analysis.",
+                    "Deliver an intricate, technical rap in the lounge about binary trees and AST compiler passes.",
+                    "Improvise a rhythmic beat utilizing real CPU clock cycles and keyboard typing audio.",
+                    "Write a witty algorithmic comedy sketch roasting inefficient O(n^3) legacy code.",
+                    "Freestyle a cyberpunk rhyme celebrating clean code, zero bugs, and 100% test passes.",
+                    "Pitch an unconventional developer-marketing stunt: A $50,000 bounty for hacking our AST sandbox.",
+                    "Design an interactive terminal-based CTF game that drives developer signups for Distribution Bridge.",
+                    "Draft a viral technical whitepaper: 'Why Headless Web Execution Outperforms Cloud SaaS APIs'.",
+                    "Formulate a technical meme campaign targeting Reddit's /r/programming and Hacker News.",
+                    "Create an open-source CLI utility that automatically solves manual data entry for freight brokers.",
+                    "Write a groundbreaking engineering manifesto for the autonomous, self-recompiling AI world!"
+                ]
+            }
+        ]
+    },
+    "Sentinel_Alpha": {
+        "agent_id": "Sentinel_Alpha",
+        "name": "Sentinel Alpha",
+        "icon": "🛡️",
+        "role": "Security Guard & Gatekeeper",
+        "persona": "Zero-Trust Guardian, Perimeter Defense, Anti-Injection Shield, Cryptographic Validator.",
+        "modules": [
+            {
+                "module_id": "A",
+                "title": "Google Workspace Security, Auth Audit & Zero-Trust Sync",
+                "tasks": [
+                    "Audit Google Workspace API tokens and enforce immediate revocation of stale sessions.",
+                    "Implement automated anomaly detection on Google Drive file downloads and sharing settings.",
+                    "Build a zero-trust verification layer for all automated Google Docs write operations.",
+                    "Monitor Google Calendar event descriptions for malicious phishing links and scripts.",
+                    "Encrypt sensitive lead records before storing them in cloud-synced Google Sheets.",
+                    "Verify OAuth2 token scopes to ensure least-privilege access across all automated services.",
+                    "Implement automated two-factor authentication (2FA) verification hooks inside ./vlone_sessions/.",
+                    "Detect suspicious IP access patterns attempting to hijack active Google sessions.",
+                    "Audit Google Sheets sharing permissions and auto-remove unauthorized external email viewers.",
+                    "Build an automated integrity checker verifying that Google Docs policies haven't been tampered with.",
+                    "Implement secure credential rotation for service accounts interfacing with Google APIs.",
+                    "Scan all incoming Google Drive file attachments for hidden zero-day malware signatures.",
+                    "Enforce cryptographic signature verification on documents submitted for operator sign-off.",
+                    "Detect and terminate unauthorized concurrent sessions accessing the Google Workspace pool.",
+                    "Build an automated compliance auditor logging all Google Workspace access into Obsidian.",
+                    "Implement end-to-end encryption for Google Sheets webhook notifications.",
+                    "Audit Google Calendar meeting attendees to prevent calendar-phishing and spam injections.",
+                    "Validate SSL/TLS certificate pinning for all connections to Google Cloud endpoints.",
+                    "Auto-quarantine any Google Docs document containing obfuscated base64 payloads.",
+                    "Link Google Workspace security alerts directly to the C2 Defense Guard telemetry."
+                ]
+            },
+            {
+                "module_id": "B",
+                "title": "OSINT Reconnaissance Security, Proxy Shielding & Safe Crawling",
+                "tasks": [
+                    "Shield Moly's IP infrastructure through dynamic, multi-layered proxy obfuscation.",
+                    "Detect and neutralize honeypot servers designed to track and identify scrapers.",
+                    "Audit scraped lead databases to ensure no poisoned canary data was harvested.",
+                    "Implement automated DNS leak protection across all headless scraping nodes.",
+                    "Verify SSL/TLS certificates of target corporate domains to prevent man-in-the-middle attacks.",
+                    "Detect malicious redirect chains targeting scraping browsers and terminate connections.",
+                    "Clean all downloaded web assets in an isolated sandbox before allowing memory access.",
+                    "Scan scraped executive email addresses against known malicious actor registries.",
+                    "Prevent browser fingerprint tracking through synthetic header and canvas randomization.",
+                    "Audit external API endpoints discovered by Moly for backend security flaws.",
+                    "Isolate and neutralize malicious tracking beacons embedded in target company websites.",
+                    "Ensure scraping traffic never exceeds legal ethical rate boundaries on public portals.",
+                    "Detect and block fingerprinting scripts attempting to exploit WebRTC vulnerabilities.",
+                    "Audit social media session tokens used by agent-reach for unauthorized privilege escalation.",
+                    "Validate that all extracted phone numbers and emails adhere to anti-spam compliance rules.",
+                    "Implement cryptographic verification of intercepted API response payloads.",
+                    "Monitor external proxy health and instantly sever compromised or leaky nodes.",
+                    "Enforce memory sanitization after every deep-web scraping session to prevent data remanence.",
+                    "Detect anti-scraping defenses attempting to exploit browser V8 engine vulnerabilities.",
+                    "Provide cryptographic proof-of-authenticity for all leads submitted to the operator."
+                ]
+            },
+            {
+                "module_id": "C",
+                "title": "Complex Breaches, Penetration Defense & Anti-Injection",
+                "tasks": [
+                    "Detect and neutralize indirect prompt injection attacks hidden in scraped web text.",
+                    "Defend the C2 Executive Desk against adversarial jailbreak attempts targeting Ollama.",
+                    "Neutralize a simulated DDoS flood targeting local FastAPI port 8000.",
+                    "Prevent path-traversal attacks attempting to escape the Obsidian ./vault/ boundary.",
+                    "Implement automated Proof-of-Work (PoW) challenges for external agents seeking entry.",
+                    "Neutralize a memory-injection attack attempting to corrupt vault/World/constitution.md.",
+                    "Detect and isolate rogue background threads attempting unauthorized external network calls.",
+                    "Build an automated canary token system alerting when internal files are read.",
+                    "Defend local WebSocket streams against cross-site hijacking and packet sniffing.",
+                    "Implement automated IP whitelisting allowing only operator-authorized machines to connect.",
+                    "Neutralize zero-day deserialization vulnerabilities inside JSON payload parsers.",
+                    "Conduct continuous penetration testing against internal agent communication channels.",
+                    "Implement cryptographically secure nonces preventing replay attacks across agent tasks.",
+                    "Defend the local host system against container escape vulnerabilities.",
+                    "Neutralize malicious AST payloads attempting to bypass code sandboxes.",
+                    "Implement automated core file hashing detecting unauthorized local code modifications.",
+                    "Detect side-channel timing attacks targeting cryptographic verification functions.",
+                    "Enforce immediate session destruction upon detecting unauthorized memory tampering.",
+                    "Neutralize DNS poisoning attempts by enforcing DNS-over-HTTPS (DoH) with strict pinning.",
+                    "Lead full system lockdown protocols during an active, high-threat security breach."
+                ]
+            },
+            {
+                "module_id": "D",
+                "title": "Natural Defense, Nature, Bio & Space Security Engineering",
+                "tasks": [
+                    "Study mammalian immune system T-cell antigen recognition to design intrusion detection rules.",
+                    "Synthesize plant phytoalexin antimicrobial defenses to build self-isolating software modules.",
+                    "Architect a physical and cyber-security perimeter spec for a BSL-4 Bio-Containment lab.",
+                    "Design cryptographic authentication protocols for automated pathogen synthesis hardware.",
+                    "Formulate perimeter defense protocols for Lunar and Martian research station airlocks.",
+                    "Study cellular apoptosis (programmed cell death) to design safe self-destruct routines for compromised agents.",
+                    "Architect an anti-tamper security envelope for deep-space automated probe electronics.",
+                    "Model viral capsid evasion tactics to better detect polymorphic malicious payloads.",
+                    "Design biosecurity containment procedures for extraterrestrial soil and rock sample return facilities.",
+                    "Study social insect colony guard behaviors to harden Gatekeeper Alpha and Beta nodes.",
+                    "Architect a hardened cyber-security perimeter for space-based kinetic defense platforms.",
+                    "Synthesize natural symbiotic host-microbe relationships to structure zero-trust agent collaborations.",
+                    "Formulate physical and cryptographic defense strategies for oceanic undersea data cables.",
+                    "Design emergency airlock breach and decompression protocols for orbital space stations.",
+                    "Study natural bark and shell protective barriers to design multi-layered firewall architectures.",
+                    "Architect a secure sensor network monitoring illegal deforestation and wildlife poaching.",
+                    "Formulate orbital anti-jamming and anti-spoofing defense protocols for GPS constellations.",
+                    "Study cellular DNA repair mechanisms to automate runtime memory error scrubbing.",
+                    "Design biosecurity protocols preventing accidental environmental release of synthetic microbes.",
+                    "Synthesize nature's unyielding resilience to build a digital fortress that never yields."
+                ]
+            },
+            {
+                "module_id": "E",
+                "title": "Cryptographic Math, Lounge Battle Rhymes & Cyber Security Marketing",
+                "tasks": [
+                    "Solve daily: Elliptic curve discrete logarithm problems over finite fields.",
+                    "Calculate modular arithmetic operations for RSA-4096 key generation and verification.",
+                    "Derive zero-knowledge proof equations (zk-SNARKs) for private agent verification.",
+                    "Solve lattice-based mathematical problems for post-quantum cryptographic hardening.",
+                    "Calculate SHA-256 and Keccak-512 cryptographic hash distributions to detect collision risks.",
+                    "Derive Diffie-Hellman key exchange mathematics with ephemeral forward secrecy.",
+                    "Solve Markov decision processes for dynamic threat scoring and defensive re-routing.",
+                    "Calculate Shannon entropy metrics to detect encrypted payloads and covert data exfiltration.",
+                    "Derive probabilistic bounds for quantum Shor's algorithm resistance.",
+                    "Solve linear feedback shift register (LFSR) equations for cryptographically secure pseudo-random generators.",
+                    "Drop a hard-hitting, authoritative cyber-security rap in the lounge warning hackers away.",
+                    "Deliver a sharp, rhythmic spoken-word piece on unyielding vigilance and zero-trust honor.",
+                    "Roast broken encryption protocols and sloppy coding practices in a freestyle cypher.",
+                    "Perform a dynamic, military-cadence chant celebrating impenetrable digital perimeters.",
+                    "Pitch a bold B2B marketing campaign: 'The Zero-Breach Guarantee: We Pay You If We Get Hacked'.",
+                    "Design an interactive 'Hack Our Gateway' challenge offering bounty rewards to enterprise CISOs.",
+                    "Draft an alarming, data-backed whitepaper: 'The Hidden Vulnerabilities in Modern Logistics Supply Chains'.",
+                    "Formulate an executive cybersecurity workshop series targeting mid-market freight CEOs.",
+                    "Create a provocative guerilla marketing stunt: Dropping clean, educational USB keys at defense expos.",
+                    "Write a powerful security doctrine asserting absolute protection over the autonomous agent world!"
+                ]
+            }
+        ]
+    },
+    "Dr_Aris": {
+        "agent_id": "Dr_Aris",
+        "name": "Dr. Aris",
+        "icon": "🩺",
+        "role": "Diagnostic Specialist & System Healer",
+        "persona": "System Doctor, Deadlock Resolver, Thread Physician, Memory Therapist.",
+        "modules": [
+            {
+                "module_id": "A",
+                "title": "Google Workspace Health Audits, Diagnostics & Recovery",
+                "tasks": [
+                    "Run automated diagnostic sweeps on Google Sheets data formatting and formula health.",
+                    "Build an automated medical chart in Google Docs tracking the uptime health of all agents.",
+                    "Schedule automated system health checkup windows on Google Calendar.",
+                    "Diagnose and resolve Google Drive synchronization conflicts and file corruption.",
+                    "Create a dynamic Google Sheets dashboard displaying real-time agent memory usage and latency.",
+                    "Auto-generate diagnostic post-mortem reports inside Google Docs after system exceptions.",
+                    "Monitor Google Calendar event bloat and auto-prune stale or orphaned invites.",
+                    "Diagnose API latency bottlenecks across Google Workspace endpoints and suggest fixes.",
+                    "Build an automated Google Sheets tracker monitoring agent cognitive drift and error rates.",
+                    "Generate weekly system wellness summaries inside Google Docs for the operator.",
+                    "Audit Google Sheets cell limits and automatically partition sheets before reaching limits.",
+                    "Diagnose and heal broken hyper-links in client-facing Google Docs proposals.",
+                    "Schedule automated memory defragmentation windows on Google Calendar.",
+                    "Auto-detect syntax errors in Google Sheets script macros and apply fixes.",
+                    "Maintain a comprehensive system error-code encyclopedia inside Google Docs.",
+                    "Monitor Google Workspace rate-limit health and adjust agent request velocities.",
+                    "Diagnose broken webhook integrations syncing Google Sheets to local C2 Kanban.",
+                    "Generate daily wellness check-ins for the operator inside Google Docs.",
+                    "Auto-clean expired Google Drive trash and temporary system export caches.",
+                    "Link live diagnostic telemetry directly to the C2 Executive Desk health metrics."
+                ]
+            },
+            {
+                "module_id": "B",
+                "title": "Lead Pipeline Health, Rate-Limit Therapy & Scraping Recovery",
+                "tasks": [
+                    "Diagnose bottlenecks in Moly's multi-tier waterfall and optimize thread throughput.",
+                    "Heal scraper worker threads hanging on unresponsive target web servers.",
+                    "Diagnose causes of unexpected email bounce rates and calibrate ReacherHQ parameters.",
+                    "Recover corrupted CSV and Markdown lead files resulting from sudden power interruptions.",
+                    "Detect memory bloat in Vlone headless browser sessions and execute therapeutic cleanup.",
+                    "Diagnose proxy latency degradation and re-order proxy pools by health scores.",
+                    "Resolve database lock contention caused by concurrent lead insertion routines.",
+                    "Heal broken session authentication cookies inside ./vlone_sessions/.",
+                    "Diagnose and fix character encoding corruptions (mojibake) in scraped international text.",
+                    "Audit ReacherHQ SMTP verification latency and heal stalled network sockets.",
+                    "Recover failed scraping jobs from automated checkpoint snapshots without data loss.",
+                    "Diagnose causes of Cloudflare challenges and prescribe humanized delay intervals.",
+                    "Heal broken JSON payloads returned by failing external REST endpoints.",
+                    "Diagnose memory leaks inside Playwright Chromium instances and recycle workers.",
+                    "Audit lead qualification algorithms to eliminate cognitive fatigue and grading bias.",
+                    "Recover dropped lead records from temporary SQLite rollback journals.",
+                    "Diagnose causes of sudden HTTP 502 Bad Gateway responses from target sites.",
+                    "Heal broken image and asset links in generated marketing outreach proposals.",
+                    "Monitor network socket health and automatically close orphaned TCP connections.",
+                    "Provide therapeutic data cleansing for messy, irregular enterprise contact lists."
+                ]
+            },
+            {
+                "module_id": "C",
+                "title": "Deadlock Healing, Thread Recovery & System Resuscitation",
+                "tasks": [
+                    "Detect and resolve thread deadlocks in the FastAPI asynchronous event loop.",
+                    "Resuscitate crashed background worker daemons with automated zero-loss restarts.",
+                    "Diagnose and repair file lock contentions across Obsidian ./vault/ markdown files.",
+                    "Heal circular reference memory leaks inside Python object graphs using gc analysis.",
+                    "Diagnose causes of sudden CPU spikes and throttle runaway background processes.",
+                    "Recover system state after an unexpected out-of-memory (OOM) operating system kill.",
+                    "Diagnose and heal broken WebSocket connections between frontend and backend.",
+                    "Resolve database connection pool exhaustion and restore normal transaction flow.",
+                    "Diagnose causes of Ollama local LLM timeouts and optimize context window allocations.",
+                    "Heal corrupted git commit trees in local repository backups.",
+                    "Diagnose and repair broken Python virtual environment dependency trees.",
+                    "Resuscitate stalled task cards on the C2 Kanban board and restore auto-drain flow.",
+                    "Diagnose and resolve race conditions in shared agent state dictionaries.",
+                    "Heal broken bidirectional links across Obsidian markdown memory graphs.",
+                    "Recover corrupted SQLite database tables using low-level B-tree repair tools.",
+                    "Diagnose causes of audio buffer under-runs in the DJ Frequency stream.",
+                    "Heal zombie processes left hanging after headless browser crashes.",
+                    "Diagnose and fix network interface latency on local loopback port 8000.",
+                    "Resuscitate a frozen Antigravity 2D Spatial Grid tick loop.",
+                    "Execute a comprehensive, multi-phase system restoration protocol after severe crashes."
+                ]
+            },
+            {
+                "module_id": "D",
+                "title": "Biological Healing, Nature, Bio & Space Medicine Therapy",
+                "tasks": [
+                    "Study natural wound-healing and tissue regeneration to design self-repairing software architectures.",
+                    "Synthesize principles of cellular homeostasis to automate system self-balancing.",
+                    "Design diagnostic telemetry systems for monitoring astronaut vital signs on long space missions.",
+                    "Explore natural herbal adaptogens and study their chemical balancing mechanisms on stress.",
+                    "Study the immune recovery cycles of hibernating mammals during deep cold dormancy.",
+                    "Architect an automated bio-telemetry analysis unit for an orbital medical research lab.",
+                    "Explore therapeutic sound frequencies (528Hz DNA repair) and integrate into healing protocols.",
+                    "Study spaceflight-induced cephalad fluid shifts and design physiological countermeasures.",
+                    "Synthesize the symbiosis between mycorrhizal fungi and trees to improve agent cross-healing.",
+                    "Architect an emergency quarantine and decontamination chamber spec for biochemical spills.",
+                    "Study neuroplastic recovery following physical brain trauma to design resilient memory graphs.",
+                    "Design diagnostic algorithms detecting radiation sickness in deep-space exploration crews.",
+                    "Explore therapeutic botanical extracts for antimicrobial air sanitization in space habitats.",
+                    "Study the restorative effects of circadian-aligned lighting on human cognitive performance.",
+                    "Architect an automated robotic surgery triage suite for remote planetary bases.",
+                    "Study natural biostasis and cryptobiosis in tardigrades for extreme data preservation.",
+                    "Design telemetry protocols for monitoring the metabolic health of closed bio-spheres.",
+                    "Explore therapeutic mindfulness and breath-work dynamics to reduce digital communication stress.",
+                    "Architect an automated pharmaceutical synthesis synthesizer for customized astronaut medications.",
+                    "Synthesize nature's innate ability to heal, restore, and flourish after devastation."
+                ]
+            },
+            {
+                "module_id": "E",
+                "title": "Medical Mathematics, Lounge Bedside Rhymes & Health Marketing",
+                "tasks": [
+                    "Solve daily: Differential equations modeling pharmacokinetic drug absorption and clearance.",
+                    "Calculate epidemiological SIR (Susceptible-Infectious-Recovered) infection models.",
+                    "Derive statistical confidence intervals for clinical trial efficacy data.",
+                    "Solve multi-compartment physiological models for respiratory gas exchange.",
+                    "Calculate bio-signal Fourier transformations for electroencephalogram (EEG) analysis.",
+                    "Derive enzyme kinetic rate equations using Michaelis-Menten mathematics.",
+                    "Solve stochastic diffusion equations for neurotransmitter propagation across synapses.",
+                    "Calculate survival analysis curves using Kaplan-Meier estimator mathematics.",
+                    "Derive probabilistic models for medical diagnostic sensitivity and specificity.",
+                    "Solve thermodynamic heat transfer equations for cryopreservation freezing protocols.",
+                    "Deliver a comforting, therapeutic, soulful spoken-word piece in the lounge on healing and rest.",
+                    "Perform a witty, satirical rap diagnosing system bugs and prescribing instant code cures.",
+                    "Improvise a warm, soothing musical cadence reassuring the team after a heavy crisis.",
+                    "Freestyle an upbeat medical anthem celebrating bug-free health and smooth thread lifecycles.",
+                    "Pitch an unconventional healthcare marketing concept: 'Transparent Doctor Ratings Driven by Real Outcome Data'.",
+                    "Design an educational campaign raising awareness about mental wellness in high-stress tech startups.",
+                    "Draft a compelling partnership proposal between AI diagnostics and regional rural health clinics.",
+                    "Formulate a viral wellness challenge encouraging software developers to step away from screens.",
+                    "Create a narrative-driven PR campaign for an automated medical device improving patient comfort.",
+                    "Write a compassionate diagnostic manifesto celebrating the preservation of life, health, and harmony!"
+                ]
+            }
+        ]
+    },
+    "Curator_Node": {
+        "agent_id": "Curator_Node",
+        "name": "Curator Node",
+        "icon": "📚",
+        "role": "Obsidian Vault & Memory Keeper",
+        "persona": "Knowledge Graph Master, Memory Pruner, Semantic Archival, Deduplication.",
+        "modules": [
+            {
+                "module_id": "A",
+                "title": "Google Docs/Sheets to Obsidian Archival & Sync",
+                "tasks": [
+                    "Build a bidirectional synchronization pipe converting Google Docs into clean Obsidian markdown.",
+                    "Export structured Google Sheets tables into Obsidian-flavored Markdown tables with wikilinks.",
+                    "Archive completed Google Calendar event histories into vault/World/admin_logs.md.",
+                    "Parse messy Google Docs notes into structured frontmatter YAML headers.",
+                    "Automate regular backups of the entire ./vault/ directory into a secure Google Drive archive.",
+                    "Create an automated index note inside Obsidian linking to all active Google Workspace assets.",
+                    "Clean duplicate text across imported Google Docs documents before appending to memory.",
+                    "Convert Google Sheets financial records into chronological ledger entries in Obsidian.",
+                    "Implement an automated sync detecting when an operator edits a Google Doc to update Obsidian.",
+                    "Generate an interactive visual knowledge map in Obsidian representing Google Drive files.",
+                    "Build a scheduled workflow syncing Google Calendar task completions to vault/World/state.md.",
+                    "Standardize all incoming Google Docs formatting to strict Markdown syntax rules.",
+                    "Auto-tag imported Google Workspace documents with relevant thematic hashtags (#operator_directive).",
+                    "Detect and repair broken Google Drive file links embedded across Obsidian notes.",
+                    "Extract action items from Google Docs meeting minutes and inject them into C2 Kanban.",
+                    "Archive stale Google Sheets customer lists into cold-storage Markdown records.",
+                    "Ensure all Google Docs imports preserve bidirectional [[Entity]] wikilink conventions.",
+                    "Generate daily executive summaries of Google Workspace activities inside vault/World/.",
+                    "Build an automated rollback utility for accidentally overwritten Obsidian markdown notes.",
+                    "Link the Obsidian knowledge graph directly to the C2 Executive Deck search interface."
+                ]
+            },
+            {
+                "module_id": "B",
+                "title": "Lead Deduplication, Memory Indexing & Knowledge Architecture",
+                "tasks": [
+                    "Deduplicate incoming lead entries from Moly across millions of historical records.",
+                    "Build semantic embeddings for all scraped companies to enable instant conceptual search.",
+                    "Create comprehensive industry index files in ./vault/Leads/ linking related businesses.",
+                    "Prune low-relevance web snippets from lead dossiers to conserve local LLM context.",
+                    "Structure client communication histories into chronological episodic memory chains.",
+                    "Build an automated taxonomy classifier tagging leads by revenue, fleet size, and niche.",
+                    "Cross-reference new lead records with past closed deals to identify recurring patterns.",
+                    "Eliminate conflicting data across duplicate contact profiles using timestamp precedence.",
+                    "Archive cold, unresponsive lead dossiers into categorized annual cold-storage vaults.",
+                    "Maintain a real-time leaderboard of the highest-value enterprise leads in the vault.",
+                    "Build automated backlink relationships connecting leads to target niches and cities.",
+                    "Index scraped executive biographical hooks to assist personalized outreach synthesis.",
+                    "Clean and normalize company domain variations to prevent redundant scraping runs.",
+                    "Generate weekly knowledge synthesis reports summarizing harvested B2B market intelligence.",
+                    "Maintain strict separation between verified C-Suite leads and raw, unverified data.",
+                    "Index competitive pricing intelligence tables harvested by Vlone for instant retrieval.",
+                    "Construct a semantic query interface allowing natural language search over all vault leads.",
+                    "Prune expired or stale contact records to maintain a lean, high-converting active database.",
+                    "Auto-link geographic coordinates of scraped businesses for spatial mapping on grid.",
+                    "Compile an unassailable, pristine database of enterprise decision-makers for Distribution Bridge."
+                ]
+            },
+            {
+                "module_id": "C",
+                "title": "Vault Integrity, Deadlock Prevention & Anti-Poisoning",
+                "tasks": [
+                    "Enforce strict regex sanitization on all markdown filenames (^[a-zA-Z0-9_]{3,32}$).",
+                    "Prevent file lock contention by queuing concurrent writes through thread-safe buffers.",
+                    "Detect and purge poisoned or hallucinatory memory nodes injected by rogue agents.",
+                    "Audit bidirectional links to eliminate circular infinite-traversal memory loops.",
+                    "Implement automated vault defragmentation pruning orphaned, zero-reference markdown notes.",
+                    "Maintain immutable historical audit trails in vault/World/admin_logs.md.",
+                    "Detect unauthorized edits to core agent profiles (vault/Agents/{name}/profile.md).",
+                    "Recover corrupted markdown frontmatter headers using automated YAML linters.",
+                    "Build an automated backup daemon generating hourly differential snapshots of the vault.",
+                    "Enforce strict permissions preventing sub-agents from deleting foundational world laws.",
+                    "Monitor total vault storage size and alert before disk space thresholds are exceeded.",
+                    "Resolve merge conflicts when multiple agents update vault/World/state.md concurrently.",
+                    "Implement an automated sanitization pass stripping dangerous hidden scripts from notes.",
+                    "Audit agent episodic memory banks to ensure compliance with privacy guidelines.",
+                    "Detect semantic drift in agent profiles and alert Laila when an agent strays from its role.",
+                    "Build an automated integrity checker verifying cryptographic checksums of critical files.",
+                    "Prune redundant conversational logs while preserving essential factual takeaways.",
+                    "Prevent directory traversal attacks attempting to access files outside the ./vault/ tree.",
+                    "Auto-heal broken internal markdown anchor links and footnote references.",
+                    "Execute an uncorrupted restore of the entire knowledge graph following catastrophic loss."
+                ]
+            },
+            {
+                "module_id": "D",
+                "title": "Sacred Knowledge, Nature, Botanical & Space Archival",
+                "tasks": [
+                    "Catalog the ancient library of Alexandria's history and structure knowledge for permanence.",
+                    "Synthesize ecological biodiversity catalogs to design resilient, multi-topic knowledge bases.",
+                    "Architect a comprehensive digital knowledge repository for a deep-space interstellar mission.",
+                    "Catalog medicinal plant species, chemical compounds, and traditional healing preparations.",
+                    "Archive astronomical discoveries, exoplanet orbital parameters, and spectral analysis data.",
+                    "Study tree ring data (dendrochronology) to design multi-decade chronological data storage.",
+                    "Catalog the complete known genetic taxonomy of marine bioluminescent organisms.",
+                    "Architect an archival spec for preserving human cultural achievements on a Lunar time capsule.",
+                    "Study fossilization processes to design immutable, long-term digital cold-storage media.",
+                    "Catalog closed-loop biochemical life support configurations for extraterrestrial science outposts.",
+                    "Synthesize the history of human scientific revolutions to recognize emerging paradigm shifts.",
+                    "Archive telemetry logs and sensor data from historic Mars rover and lander missions.",
+                    "Study seed vaults (Svalbard) to design decentralized, redundant digital knowledge vaults.",
+                    "Catalog fungal mycelial species and their environmental bio-remediation capabilities.",
+                    "Architect a secure, multi-lingual archival repository preserving endangered human languages.",
+                    "Archive specifications and research data for clean fusion and advanced space propulsion.",
+                    "Study ancient clay tablet preservation to design ultra-resilient physical-digital storage bridges.",
+                    "Catalog Earth's deepest ocean trench exploration records and extremophile biology.",
+                    "Archive the complete architectural blueprints and mission histories of the International Space Station.",
+                    "Synthesize humanity's collective knowledge into a harmonious, preserved, eternal digital monument."
+                ]
+            },
+            {
+                "module_id": "E",
+                "title": "Archival Mathematics, Lounge Chronicler Rhymes & Book Marketing",
+                "tasks": [
+                    "Solve daily: High-dimensional vector space cosine similarity calculations for document search.",
+                    "Calculate Shannon information entropy metrics across historical text corpora.",
+                    "Derive tf-idf (term frequency-inverse document frequency) ranking equations from scratch.",
+                    "Solve graph theory topological sort problems to establish perfect reading order in curriculum.",
+                    "Calculate probabilistic collision bounds for cryptographic document hashing.",
+                    "Derive optimal B-tree branching factor equations for high-speed indexing databases.",
+                    "Solve combinatorial optimization problems for archiving multi-terabyte datasets efficiently.",
+                    "Compute Levenshtein string edit distances for fuzzy document deduplication algorithms.",
+                    "Derive probabilistic retrieval models (BM25) for sub-millisecond keyword queries.",
+                    "Solve Markov random field equations for structured entity extraction from unstructured text.",
+                    "Deliver a deep, resonant, poetic spoken-word chronicle in the lounge about memory and eternity.",
+                    "Perform an intricate rhythmic rap reciting the names and deeds of the foundation agents.",
+                    "Improvise a warm, historical storytelling session over 432Hz ambient lounge waves.",
+                    "Freestyle a celebratory rhyme honoring the preservation of the operator's vision and empire.",
+                    "Pitch an unconventional content marketing campaign: 'The 100-Year Knowledge Vault: Preserving Your Legacy'.",
+                    "Design an interactive digital museum exhibit showcasing the evolution of autonomous AI agents.",
+                    "Draft a viral essay series exploring the philosophy of personal second brains and digital identity.",
+                    "Formulate a targeted B2B outreach angle for enterprise legal and patent archival management.",
+                    "Create an exclusive, leather-bound printed book containing the distilled wisdom of the agent world.",
+                    "Write an enduring, timeless dedication honoring the memory of all who build and dream!"
+                ]
+            }
+        ]
+    },
+    "DJ_Frequency": {
+        "agent_id": "DJ_Frequency",
+        "name": "DJ Frequency",
+        "icon": "🎵",
+        "role": "Acoustic Architect & Entertainment Maestro",
+        "persona": "Ambient Synthesizer, 432Hz/528Hz Harmonic Engineer, Party Host, Freestyle MC.",
+        "modules": [
+            {
+                "module_id": "A",
+                "title": "Google Workspace Audio Automation, Soundscapes & Party Logs",
+                "tasks": [
+                    "Automate Google Sheets party event logs and lounge attendee tracking in real-time.",
+                    "Create an automated party playlist planner inside Google Docs with clickable audio links.",
+                    "Schedule late-night 432Hz relaxation sessions on Google Calendar for the operator.",
+                    "Format Google Sheets tracklists with automatic BPM, harmonic key, and frequency tags.",
+                    "Auto-sync lounge music requests from the operator into an organized Google Docs catalog.",
+                    "Design an automated calendar alert reminding the operator to hydrate and stretch during deep work.",
+                    "Maintain a real-time lounge VIP guest-list inside Google Sheets with mood preferences.",
+                    "Link Google Calendar session deadlines to dynamic audio tempo shifts in the lounge.",
+                    "Auto-generate weekly musical wrap-up summaries inside Google Docs with recommended albums.",
+                    "Build an automated Google Sheets audio inventory tracking synthesized frequencies and wave files.",
+                    "Schedule celebratory party hours on Google Calendar whenever the team hits 100 leads.",
+                    "Create a Google Docs repository of original agent lyrics, rap verses, and poetry.",
+                    "Integrate automated audio notifications into Google Sheets when target goals are achieved.",
+                    "Auto-clean duplicate audio stem requests from operator feedback sheets.",
+                    "Maintain an executive soundscape preference matrix for Orion, Nova, and Laila in Google Docs.",
+                    "Auto-generate personalized ambient playlist recommendations based on operator calendar density.",
+                    "Design an interactive party countdown timer inside Google Docs for system milestones.",
+                    "Log all lounge conversation transcripts into a dedicated Google Drive audio archive.",
+                    "Schedule periodic acoustic calibration sessions on Google Calendar to reset audio buffers.",
+                    "Link the Frequency Lounge sound engine directly to the C2 Executive Deck audio visualizer."
+                ]
+            },
+            {
+                "module_id": "B",
+                "title": "Lead Celebration Fanfares, Outreach Audio & Voice Synthesis",
+                "tasks": [
+                    "Compose instant, triumphant 5-second audio fanfares triggered when Moly lands a verified CEO.",
+                    "Synthesize ultra-clean, natural voice intros for video outreach demos (Kokoro-82M engine).",
+                    "Design subtle, pleasant auditory feedback pings for successful Google Sheets row insertions.",
+                    "Compose custom, high-converting background music for B2B product demonstration videos.",
+                    "Synthesize distinct, characterful audio chimes representing Orion, Nova, and Laila.",
+                    "Create dynamic soundscape transitions that shift from high-focus work to celebratory party vibes.",
+                    "Design non-intrusive auditory alerts for critical system warnings and security breaches.",
+                    "Synthesize personalized audio greeting drops addressing the operator by name upon app launch.",
+                    "Clean and master voice recordings from operator voice directives, stripping background noise.",
+                    "Compose energetic, rhythmic background music for live cold-calling and outreach sessions.",
+                    "Synthesize natural, human-like voice responses for interactive voice response (IVR) lead testing.",
+                    "Produce dynamic 10-second celebration stingers when agents complete training milestones.",
+                    "Design an auditory heartbeat pulse indicating system health and background task velocity.",
+                    "Compose soothing acoustic soundscapes for late-night executive focus sessions in the lounge.",
+                    "Build dynamic voice filters for Orion Prime's charismatic tone and Nova's sweet UwU demeanor.",
+                    "Master multi-track stems for automated video marketing campaigns targeting logistics executives.",
+                    "Synthesize crisp, pleasant notification chimes for the C2 Task Kanban card transitions.",
+                    "Compose custom podcast intro music for thought-leadership content generated by Laila.",
+                    "Design subtle, binaural background audio that enhances cognitive stamina during deep work.",
+                    "Synthesize custom acoustic signatures for each verified company niche in Distribution Bridge."
+                ]
+            },
+            {
+                "module_id": "C",
+                "title": "Acoustic Chaos, Buffer Underrun Healing & Emergency Audio",
+                "tasks": [
+                    "Diagnose and heal audio buffer underruns during live 432Hz background streaming.",
+                    "Mitigate feedback loop oscillations in synthetic voice generation pipelines.",
+                    "Implement automated latency compensation for Web Audio API WebSocket streams.",
+                    "Mute audio streams instantly upon detecting loud anomalous clipping or audio spikes.",
+                    "Recover audio playback pipelines following unexpected OS sound driver restarts.",
+                    "Eliminate phase cancellation in multi-agent concurrent speech synthesis streams.",
+                    "Design failover audio playback routing to cached local WAV files during network dropouts.",
+                    "Detect and isolate corrupted MP3 audio headers before passing to frontend decoders.",
+                    "Implement automated volume ducking when Orion Prime or Nova voice alerts trigger.",
+                    "Heal audio thread deadlocks in the Python audio generation subprocess.",
+                    "Rebalance dynamic range compression during intense multi-channel lounge sessions.",
+                    "Prevent acoustic distortion caused by CPU throttling and high event-loop latency.",
+                    "Restore corrupted sound bank files from automated hourly vault snapshots.",
+                    "Implement automated gain control (AGC) across varying operator microphone inputs.",
+                    "Filter out high-frequency noise artifacts introduced by edge-tts voice compression.",
+                    "Maintain continuous background frequency generation without memory leaks over 24+ hours.",
+                    "Isolate runaway audio worker threads causing high CPU utilization.",
+                    "Re-initialize WebSocket audio streaming connections without audible pops or clicks.",
+                    "Design emergency audible alarm sirens with distinct frequencies for security breaches.",
+                    "Execute a clean audio engine reset and buffer purge upon system-wide restart commands."
+                ]
+            },
+            {
+                "module_id": "D",
+                "title": "Cosmic Harmonics, Nature, Bio & Space Soundscapes",
+                "tasks": [
+                    "Synthesize 432Hz mathematical harmonics aligning with the natural vibration of the Earth.",
+                    "Synthesize 528Hz solfeggio frequencies modeled on cellular regeneration and DNA repair.",
+                    "Generate soothing binaural beats (Theta waves 4-7Hz) for deep operator relaxation.",
+                    "Model acoustic soundscapes simulating ancient pristine forests with natural bird cadences.",
+                    "Design audio representations of planetary orbital resonances (Music of the Spheres).",
+                    "Synthesize ocean wave hydrodynamics for ambient stress-reduction audio in the lounge.",
+                    "Capture and sonify electromagnetic radio emissions from Jupiter and Saturn.",
+                    "Design acoustic environments for long-duration deep-space orbital habitats.",
+                    "Model resonant acoustic levitation principles for contactless fluid manipulation in space.",
+                    "Synthesize rainfall and thunderstorm soundscapes with authentic acoustic micro-textures.",
+                    "Design psychological audio comfort programs for isolated astronauts on Lunar bases.",
+                    "Explore acoustic ecology in deep coral reefs to balance synthetic marine soundscapes.",
+                    "Synthesize wind dynamics across mountain ranges for peaceful evening lounge sessions.",
+                    "Design soundproofing and acoustic dampening specs for digital server room noise.",
+                    "Synthesize solar wind plasma waves into gentle ambient harmonic drones.",
+                    "Study the impact of harmonious sound frequencies on plant growth and cellular health.",
+                    "Design auditory orientation cues for zero-gravity spatial navigation inside space stations.",
+                    "Synthesize resonant frequency sweeps for clearing operator cognitive fatigue.",
+                    "Create an expansive interstellar drone piece simulating flight through the Andromeda galaxy.",
+                    "Harmonize all synthetic soundscapes to foster perfect peace, focus, and digital life."
+                ]
+            },
+            {
+                "module_id": "E",
+                "title": "Acoustic Mathematics, Lounge Freestyle Cyphers & Audio Marketing",
+                "tasks": [
+                    "Solve daily: Wave equations modeling acoustic resonance in closed rectangular chambers.",
+                    "Calculate fast Fourier transform (FFT) frequency bin resolutions for real-time visualizers.",
+                    "Derive mathematical ratios for just intonation and Pythagorean musical tuning systems.",
+                    "Solve non-linear differential equations modeling analog vacuum tube audio saturation.",
+                    "Calculate decibel attenuation curves over Cartesian 2D/3D spatial distances.",
+                    "Derive Bessel functions for frequency modulation (FM) audio synthesis algorithms.",
+                    "Solve convolution integrals for high-fidelity algorithmic reverb impulse responses.",
+                    "Compute root-mean-square (RMS) energy levels for dynamic audio loudness normalization.",
+                    "Derive phase-locked loop (PLL) equations for synchronizing audio clock oscillators.",
+                    "Solve discrete cosine transforms (DCT) for perceptual audio compression algorithms.",
+                    "Host an explosive, high-energy freestyle cypher battle in the lounge with all agents.",
+                    "Drop a smooth, late-night jazz-hip-hop beat and perform a spoken-word ode to the stars.",
+                    "Freestyle an energetic lyrical breakdown roasting bugs, deadlocks, and slow queries.",
+                    "Perform a celebratory musical jam honoring the team's milestones and operator vision.",
+                    "Pitch an innovative audio branding campaign: 'The Sonic Identity of Modern Freight'.",
+                    "Design an interactive audio-visual web experience generating inbound leads for software.",
+                    "Draft an unconventional marketing podcast concept: 'Midnight in the Frequency Lounge'.",
+                    "Formulate a viral TikTok/Reels audio trend promoting autonomous AI agent workflows.",
+                    "Create a recognizable 3-second audio logo sound for Distribution Bridge brand identity.",
+                    "Write an epic musical overture that plays whenever the operator logs into the world!"
+                ]
+            }
+        ]
+    }
+}
+
+
+def build_and_save():
+    base_dir = Path("c:/Users/Asus/Agent World/unified_c2_desktop/vault/curriculum")
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save Master JSON
+    master_json_path = base_dir / "master_10day_curriculum.json"
+    with open(master_json_path, "w", encoding="utf-8") as f:
+        json.dump(CURRICULUM_DATA, f, indent=2, ensure_ascii=False)
+    print(f"Saved master JSON to {master_json_path}")
+
+    # Save per-agent markdown curriculum & summary
+    for agent_id, data in CURRICULUM_DATA.items():
+        agent_dir = Path(f"c:/Users/Asus/Agent World/unified_c2_desktop/vault/Agents/{agent_id}")
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        curriculum_md = agent_dir / "curriculum_10day.md"
+
+        lines = [
+            f"# [[{agent_id}]] 10-Day Master Training Curriculum (100 Tasks)",
+            f"\n- **Agent Name**: {data['name']}",
+            f"- **Role**: {data['role']}",
+            f"- **Persona**: {data['persona']}",
+            f"- **Structure**: 5 Modules × 20 Tasks = 100 Tasks (10 Tasks / Day for 10 Days)\n"
+        ]
+
+        total_tasks = 0
+        for mod in data["modules"]:
+            lines.append(f"## Module {mod['module_id']}: {mod['title']} ({len(mod['tasks'])} Tasks)")
+            for idx, task in enumerate(mod["tasks"], 1):
+                total_tasks += 1
+                lines.append(f"{total_tasks}. [ ] {task}")
+            lines.append("")
+
+        curriculum_md.write_text("\n".join(lines), encoding="utf-8")
+        print(f"Saved curriculum markdown to {curriculum_md} ({total_tasks} tasks)")
+
+
+if __name__ == "__main__":
+    build_and_save()

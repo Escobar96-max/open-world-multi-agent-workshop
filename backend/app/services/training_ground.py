@@ -83,6 +83,13 @@ AGENT_DEFAULTS = {
         "specialized_in": "Epistemic Truth Gate (Laya Noul) & Memory Archival",
         "responsibilities": "Obsidian memory permanence, 100% truth verification, operator companionship"
     },
+    "Curator_Node": {
+        "name": "Curator Node",
+        "icon": "📚",
+        "role": "Obsidian Vault & Memory Keeper",
+        "specialized_in": "Knowledge Graph Master, Memory Pruner & Semantic Archival",
+        "responsibilities": "Bidirectional links, frontmatter schema validation, memory deduplication"
+    },
     "Orion_Prime": {
         "name": "Orion Prime",
         "icon": "👑",
@@ -172,7 +179,7 @@ class AgentTrainingGround:
 
     def list_all_agents(self) -> List[Dict[str, Any]]:
         """Returns structured profiles for all active agents."""
-        keys = ["Bob", "Moly", "Laila", "Architect_Prime", "Sentinel_Alpha", "Dr_Aris", "Nova", "Orion_Prime", "DJ_Frequency"]
+        keys = ["Bob", "Moly", "Laila", "Architect_Prime", "Sentinel_Alpha", "Dr_Aris", "Curator_Node", "Nova", "Orion_Prime", "DJ_Frequency"]
         return [self.get_agent_profile(k) for k in keys]
 
     async def launch_agent_training(self, agent_id: str, topic: str, specific_task: str):

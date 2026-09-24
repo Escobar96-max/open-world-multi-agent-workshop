@@ -113,3 +113,26 @@ def test_training_ground_api_endpoints():
     status_data = res_status.json()
     assert status_data["agent_id"] == "Moly"
     assert "current_stage" in status_data
+
+    # 5. Master Curriculum Endpoints
+    res_curricula = client.get("/api/v1/training/curriculum/all")
+    assert res_curricula.status_code == 200
+    all_curricula = res_curricula.json()
+    assert "Laila" in all_curricula
+    assert "Moly" in all_curricula
+    assert "Orion_Prime" in all_curricula
+    assert "Nova" in all_curricula
+    assert "Architect_Prime" in all_curricula
+    assert "Sentinel_Alpha" in all_curricula
+    assert "Dr_Aris" in all_curricula
+    assert "Curator_Node" in all_curricula
+    assert "DJ_Frequency" in all_curricula
+
+    # 6. Specific Agent Curriculum
+    res_laila_curriculum = client.get("/api/v1/training/curriculum/Laila")
+    assert res_laila_curriculum.status_code == 200
+    laila_c = res_laila_curriculum.json()
+    assert len(laila_c["modules"]) == 5
+    total_laila_tasks = sum(len(m["tasks"]) for m in laila_c["modules"])
+    assert total_laila_tasks == 100
+

@@ -70,3 +70,53 @@ async def assign_training_endpoint(req: StartTrainingRequest, bg: BackgroundTask
         "task": req.task,
         "message": f"Training initiated for [[{req.agent_id}]]. Ingesting Web Docs + YouTube Transcripts."
     }
+
+
+@router.get("/curriculum/all")
+def get_all_curricula_endpoint():
+    """Returns the complete 10-day master curriculum (100 topics per agent) across all agents."""
+    import json
+    from pathlib import Path
+    from app.config import settings
+
+    master_path = settings.vault_path / "curriculum" / "master_10day_curriculum.json"
+    if master_path.exists():
+        try:
+            return json.loads(master_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    # Fallback to local import if file reading has issue
+    try:
+        from app.services.build_curriculum import CURRICULUM_DATA
+        return CURRICULUM_DATA
+    except Exception as ex:
+        raise HTTPException(status_code=500, detail=f"Could not load master curriculum: {ex}")
+
+
+@router.get("/curriculum/{agent_id}")
+def get_agent_curriculum_endpoint(agent_id: str):
+    """Returns the structured 5-module, 100-task curriculum for a specific agent."""
+    import json
+    from pathlib import Path
+    from app.config import settings
+
+    norm_id = training_ground.normalize_id(agent_id)
+    master_path = settings.vault_path / "curriculum" / "master_10day_curriculum.json"
+    if master_path.exists():
+        try:
+            data = json.loads(master_path.read_text(encoding="utf-8"))
+            if norm_id in data:
+                return data[norm_id]
+        except Exception:
+            pass
+
+    try:
+        from app.services.build_curriculum import CURRICULUM_DATA
+        if norm_id in CURRICULUM_DATA:
+            return CURRICULUM_DATA[norm_id]
+    except Exception:
+        pass
+
+    raise HTTPException(status_code=404, detail=f"Curriculum not found for agent: {agent_id}")
+
