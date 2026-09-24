@@ -134,22 +134,33 @@ def main():
     print("  Spatial World [0-100] | 432Hz Lounge | VLONE Semantic Browser")
     print("===================================================================")
 
-    # Start backend daemon
-    print(f"[Launcher] Starting FastAPI backend on http://{args.host}:{args.port}...")
-    server_thread = threading.Thread(
-        target=run_backend,
-        args=(args.host, args.port),
-        daemon=True
-    )
-    server_thread.start()
-
-    # Wait for backend readiness
     server_url = f"http://{args.host}:{args.port}"
-    if not wait_for_server(server_url):
-        print(f"[Launcher Error] Backend failed to start within timeout at {server_url}")
-        sys.exit(1)
 
-    print(f"[Launcher] Backend is online and healthy at {server_url}!")
+    # Check if backend is ALREADY running (e.g. user clicked shortcut while backend was active)
+    is_already_running = False
+    try:
+        with urllib.request.urlopen(f"{server_url}/health", timeout=0.8) as resp:
+            if resp.status == 200:
+                is_already_running = True
+                print(f"[Launcher] Backend is already active and healthy at {server_url}!")
+    except Exception:
+        pass
+
+    if not is_already_running:
+        # Start backend daemon
+        print(f"[Launcher] Starting FastAPI backend on http://{args.host}:{args.port}...")
+        server_thread = threading.Thread(
+            target=run_backend,
+            args=(args.host, args.port),
+            daemon=True
+        )
+        server_thread.start()
+
+        # Wait for backend readiness
+        if not wait_for_server(server_url):
+            print(f"[Launcher Error] Backend failed to start within timeout at {server_url}")
+            sys.exit(1)
+        print(f"[Launcher] Backend is online and healthy at {server_url}!")
 
     # If in test mode, run verification and exit
     if args.test_mode:
@@ -163,6 +174,16 @@ def main():
 
     # Native Window Launch via pywebview and browser fallback
     if not args.no_window:
+        # Open in default web browser as parallel fail-safe so user gets instant access
+        import webbrowser
+        def open_browser_delayed():
+            time.sleep(0.6)
+            try:
+                webbrowser.open(server_url)
+            except Exception:
+                pass
+        threading.Thread(target=open_browser_delayed, daemon=True).start()
+
         try:
             import webview
             print("[Launcher] Launching native desktop window via pywebview...")
@@ -174,15 +195,10 @@ def main():
                 resizable=True,
                 min_size=(1024, 700)
             )
-            webview.start(debug=True)
+            webview.start(debug=False)
             print("[Launcher] Native window closed. Shutting down...")
         except Exception as e:
-            print(f"[Launcher Notice] Native pywebview mode: {e}. Opening default web browser instead.")
-            try:
-                import webbrowser
-                webbrowser.open(server_url)
-            except Exception:
-                pass
+            print(f"[Launcher Notice] Native pywebview mode: {e}. Active in web browser.")
             try:
                 while True:
                     time.sleep(1)
